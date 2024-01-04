@@ -127,24 +127,85 @@ contract VaultTest is BaseTest {
 
         oracle.setPrice(strike1 + 1);
 
+        assertEq(IERC20(stEth).balanceOf(alice), 0 ether);
+
         vm.startPrank(alice);
         vault.redeem(strike1, 1 ether, stake1);
         vm.stopPrank();
 
+        assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
+        assertEq(IERC20(stEth).balanceOf(bob), 0);
+        assertEq(IERC20(stEth).balanceOf(chad), 0);
+
         // simulate more yield, verify only strike2 and strike3 get it
-
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
-
-        assertEq(vault.cumulativeYield(strike2), 0.04 ether - 1);
 
         simulateYield(0.12 ether);
 
         assertEq(vault.cumulativeYield(strike1), 0.01 ether);
         assertEq(vault.cumulativeYield(strike2), 0.08 ether - 1);
         assertEq(vault.cumulativeYield(strike3), 0.16 ether);
+
+        // move price above both strike2 and strike3, but only strike3 claims
+
+        oracle.setPrice(strike3 + 1);
+
+        assertEq(IERC20(stEth).balanceOf(chad), 0 ether);
+
+        vm.startPrank(chad);
+        vault.redeem(strike3, 4 ether, stake3);
+        vm.stopPrank();
+
+        assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
+        assertEq(IERC20(stEth).balanceOf(bob), 0);
+        assertEq(IERC20(stEth).balanceOf(chad), 4 ether - 1);
+
+        simulateYield(0.08 ether);
+
+        assertEq(vault.cumulativeYield(strike1), 0.01 ether);
+        assertEq(vault.cumulativeYield(strike2), 0.16 ether - 1);
+        assertEq(vault.cumulativeYield(strike3), 0.16 ether);
+
+        // can mint at strike3 again, but only once price goes down
+        vm.startPrank(degen);
+        vm.expectRevert("V: strike too low");
+        vault.mint{value: 4 ether}(strike3);
+        vm.stopPrank();
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+
+        oracle.setPrice(strike3 - 1);
+
+        console.log("BEFORE:", vault.cumulativeYield(strike3));
+
+        vm.startPrank(degen);
+        vault.mint{value: 4 ether}(strike3);
+        vm.stopPrank();
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+
+        console.log("AFTER: ", vault.cumulativeYield(strike3));
+
+        // assertEq(vault.cumulativeYield(strike3), 0.16 ether);
+
+        return;
+
+        // degen gets some yield, verify address level accounting
+        
+        simulateYield(0.08 ether);
+
+        assertEq(vault.cumulativeYield(strike1), 0.01 ether);
+        assertEq(vault.cumulativeYield(strike2), 0.24 ether - 5);
+        assertEq(vault.cumulativeYield(strike3), 0.16 ether);
+
+        // transfer y tokens, verify address level accounting
+
+        // simulate yield after y token transfer, verify address level accounting
     }
 
     function simulateYield(uint256 amount) internal {

@@ -34,8 +34,7 @@ contract Vault {
     uint256 public yieldPerTokenAcc;
     uint256 public cumulativeYieldAcc;
     struct StrikeInfo {
-        uint256 yieldPerTokenClaimed;
-        uint256 accClaimable;
+        uint256 cumulativeYieldAcc;
     }
     mapping (uint256 => StrikeInfo) infos;
 
@@ -68,28 +67,20 @@ contract Vault {
         emit Triggered(strike, block.timestamp);
     }
 
-    function _claimable(uint256 strike) internal returns (uint256) {
-        uint256 ypt = _yieldPerToken();
-
-        uint256 supply = yMulti.totalSupply(strike);
-        
-        return (supply * ypt / PRECISION_FACTOR
-                + infos[strike].accClaimable
-                - infos[strike].yieldPerTokenClaimed);
-    }
-
     function _checkpoint(uint256 strike) internal {
         uint256 ypt = _yieldPerToken();
         uint256 total = totalCumulativeYield();
 
-        infos[strike].accClaimable = _claimable(strike);
-        infos[strike].yieldPerTokenClaimed = ypt;
+        infos[strike].cumulativeYieldAcc = cumulativeYield(strike);
+        /* infos[strike].yieldPerTokenAcc = ypt; */
 
         yieldPerTokenAcc = ypt;
         cumulativeYieldAcc = total;
     }
 
     function mint(uint256 strike) external payable {
+        require(oracle.price(0) < strike, "V: strike too low");
+
         uint256 before = stEth.balanceOf(address(this));
         stEth.submit{value: msg.value}(address(0));
         uint256 delta = stEth.balanceOf(address(this)) - before;
@@ -100,13 +91,6 @@ contract Vault {
 
         // mint hodl, y is minted on hodl stake
         hodlMulti.mint(msg.sender, strike, delta);
-
-        // epoch accounting
-        uint256 epochId = activeEpochs[strike];
-        if (epochId == 0) {
-            epochEnds[0] = block.timestamp;
-            activeEpochs[strike] = 1;
-        }
     }
 
     function redeem(uint256 strike,
@@ -164,9 +148,9 @@ contract Vault {
         return yieldPerTokenAcc + incr;
     }
 
-    function cumulativeYield(uint256 strike) external view returns (uint256) {
+    function cumulativeYield(uint256 strike) public view returns (uint256) {
         uint256 ypt = _yieldPerToken();
-        return (infos[strike].accClaimable +
+        return (infos[strike].cumulativeYieldAcc +
                 yMulti.totalSupply(strike) * ypt / PRECISION_FACTOR);
     }
 
