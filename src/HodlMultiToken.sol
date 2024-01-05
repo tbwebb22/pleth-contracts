@@ -11,36 +11,34 @@ contract HodlMultiToken is ERC1155, Ownable {
 
     uint256 public nextId = 1;
 
-    YMultiToken public immutable yMulti;
-    Vault public immutable vault;
+    /* YMultiToken public immutable yMulti; */
+    /* Vault public immutable vault; */
 
-    struct Stake {
-        address user;
-        uint256 timestamp;
-        uint256 strike;
-        uint256 amount;
-    }
-    mapping (uint256 => Stake) public stakes;
+    /* struct Stake { */
+    /*     // TODO: check which of these fields we actua */
+    /*     address user; */
+    /*     uint256 timestamp; */
+    /*     uint256 strike; */
+    /*     uint256 amount; */
+    /* } */
+    /* mapping (uint256 => Stake) public stakes; */
 
-    event Staked(address indexed user,
-                 uint256 indexed id,
-                 uint256 timestamp,
-                 uint256 strike,
-                 uint256 amount);
+    /* event Staked(address indexed user, */
+    /*              uint256 indexed id, */
+    /*              uint256 timestamp, */
+    /*              uint256 strike, */
+    /*              uint256 amount); */
 
-    event Unstaked(address indexed user,
-                   uint256 indexed id,
-                   uint256 timestamp,
-                   uint256 strike,
-                   uint256 amount);
+    /* event Unstaked(address indexed user, */
+    /*                uint256 indexed id, */
+    /*                uint256 timestamp, */
+    /*                uint256 strike, */
+    /*                uint256 amount); */
 
-    event BurnedStake(uint256 indexed id,
-                      uint256 amount);
+    /* event BurnedStake(uint256 indexed id, */
+    /*                   uint256 amount); */
 
-    constructor(string memory uri_, address vault_) ERC1155(uri_) {
-        yMulti = new YMultiToken("", vault_);
-        vault = Vault(vault_);
-    }
+    constructor(string memory uri_) ERC1155(uri_) Ownable(msg.sender) { }
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
         _mint(user, strike, amount, "");
@@ -50,34 +48,34 @@ contract HodlMultiToken is ERC1155, Ownable {
         _burn(user, strike, amount);
     }
 
-    function stake(uint256 strike, uint256 amount) public returns (uint256) {
-        require(balanceOf(msg.sender, strike) >= amount, "HMT: balance");
+    /* function stake(uint256 strike, uint256 amount) public returns (uint256) { */
+    /*     require(balanceOf(msg.sender, strike) >= amount, "HMT: balance"); */
 
-        _burn(msg.sender, strike, amount);
-        yMulti.mint(msg.sender, strike, amount);
+    /*     _burn(msg.sender, strike, amount); */
+    /*     yMulti.mint(msg.sender, strike, amount); */
 
-        uint256 id = nextId++;
-        stakes[id] = Stake({
-            user: msg.sender,
-            timestamp: block.timestamp,
-            strike: strike,
-            amount: amount });
+    /*     uint256 id = nextId++; */
+    /*     stakes[id] = Stake({ */
+    /*         user: msg.sender, */
+    /*         timestamp: block.timestamp, */
+    /*         strike: strike, */
+    /*         amount: amount }); */
 
-        emit Staked(msg.sender,
-                    id,
-                    block.timestamp,
-                    strike,
-                    amount);
+    /*     emit Staked(msg.sender, */
+    /*                 id, */
+    /*                 block.timestamp, */
+    /*                 strike, */
+    /*                 amount); */
 
-        return id;
-    }
+    /*     return id; */
+    /* } */
 
-    function burnStake(uint256 id, uint256 amount) public onlyOwner {
-        Stake storage stk = stakes[id]; 
-        require(stk.amount >= amount, "YMT: amount");
+    /* function burnStake(uint256 id, uint256 amount) public onlyOwner { */
+    /*     Stake storage stk = stakes[id];  */
+    /*     require(stk.amount >= amount, "YMT: amount"); */
 
-        stk.amount -= amount;
+    /*     stk.amount -= amount; */
 
-        emit BurnedStake(id, amount);
-    }
+    /*     emit BurnedStake(id, amount); */
+    /* } */
 }

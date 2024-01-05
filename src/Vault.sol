@@ -16,29 +16,59 @@ contract Vault {
 
     uint256 public constant PRECISION_FACTOR = 1 ether;
 
+    uint256 public nextId = 1;
+
     IStEth public immutable stEth;
     IOracle public immutable oracle;
 
     HodlMultiToken public immutable hodlMulti;
     YMultiToken public immutable yMulti;
 
+    struct YStake {
+        address user;
+        uint256 timestamp;
+        uint256 strike;
+        uint256 epochId;
+        uint256 amount;
+        uint256 yieldPerTokenClaimed;
+    }
+    mapping (uint256 => YStake) public yStakes;
+    mapping (uint256 => uint256) public yStaked;
+    mapping (uint256 => uint256) public terminalYieldPerToken;
+    uint256 public yStakedTotal;
+
+    struct HodlStake {
+        address user;
+        uint256 timestamp;
+        uint256 strike;
+        uint256 amount;
+    }
+    mapping (uint256 => HodlStake) public hodlStakes;
+    uint256 public hodlStaked;
+
     uint256 public deposits;
     bool public didTrigger = false;
 
-    mapping (uint256 => uint256) public activeEpochs;
-    mapping (uint256 => uint256) public epochEnds;
+    /* mapping (uint256 => uint256) public activeEpochs; */
+    /* mapping (uint256 => uint256) public epochEnds; */
 
     uint256 public claimed;
 
-    // Track yield on per-strike basis to support cumulativeYield(uint256)
+    // Track yield on per-epoch basis to support cumulativeYield(uint256)
     uint256 public yieldPerTokenAcc;
     uint256 public cumulativeYieldAcc;
-    struct StrikeInfo {
+    struct EpochInfo {
+        uint256 strike;
+        uint256 yieldPerTokenAcc;
         uint256 cumulativeYieldAcc;
     }
-    mapping (uint256 => StrikeInfo) infos;
+    mapping (uint256 => EpochInfo) infos;
+
+    // Map strike to active epoch ID
+    mapping (uint256 => uint256) epochs;
 
     event Triggered(uint256 indexed strike,
+                    uint256 indexed epoch,
                     uint256 timestamp);
 
 
@@ -47,47 +77,51 @@ contract Vault {
         stEth = IStEth(stEth_);
         oracle = IOracle(oracle_);
 
-        hodlMulti = new HodlMultiToken("", address(this));
-        yMulti = hodlMulti.yMulti();
+        hodlMulti = new HodlMultiToken("");
+        yMulti = new YMultiToken("", address(this));
     }
 
     function _min(uint256 x, uint256 y) internal pure returns (uint256) {
         return x < y ? x : y;
     }
 
-    function trigger(uint256 strike, uint80 roundId) external {
-        uint256 epochId = activeEpochs[strike];
-        require(epochEnds[epochId] == 0, "V: already triggered");
-        require(oracle.timestamp(roundId) >= epochEnds[epochId - 1], "V: old round");
-        require(oracle.price(roundId) >= strike, "V: price low");
+    /* function trigger(uint256 strike, uint80 roundId) external { */
+    /*     uint256 epochId = activeEpochs[strike]; */
+    /*     require(epochEnds[epochId] == 0, "V: already triggered"); */
+    /*     require(oracle.timestamp(roundId) >= epochEnds[epochId - 1], "V: old round"); */
+    /*     require(oracle.price(roundId) >= strike, "V: price low"); */
+    /*     epochEnds[epochId] = block.timestamp; */
+    /*     activeEpochs[strike] += 1; */
+    /*     emit Triggered(strike, block.timestamp); */
+    /* } */
 
-        epochEnds[epochId] = block.timestamp;
-        activeEpochs[strike] += 1;
-
-        emit Triggered(strike, block.timestamp);
-    }
-
-    function _checkpoint(uint256 strike) internal {
+    function _checkpoint(uint256 epoch) internal {
         uint256 ypt = _yieldPerToken();
         uint256 total = totalCumulativeYield();
 
-        infos[strike].cumulativeYieldAcc = cumulativeYield(strike);
-        /* infos[strike].yieldPerTokenAcc = ypt; */
+        infos[epoch].cumulativeYieldAcc = cumulativeYield(epoch);
+        infos[epoch].yieldPerTokenAcc = ypt;
 
         yieldPerTokenAcc = ypt;
         cumulativeYieldAcc = total;
     }
 
     function mint(uint256 strike) external payable {
-        require(oracle.price(0) < strike, "V: strike too low");
+        require(oracle.price(0) <= strike, "strike too low");
 
         uint256 before = stEth.balanceOf(address(this));
         stEth.submit{value: msg.value}(address(0));
         uint256 delta = stEth.balanceOf(address(this)) - before;
         deposits += delta;
 
-        // track per-strike yield accumulation
-        _checkpoint(strike);
+        // create the epoch if needed
+        if (epochs[strike] == 0) {
+            infos[nextId].strike = strike;
+            epochs[strike] = nextId++;
+        }
+
+        // track per-epoch yield accumulation
+        _checkpoint(epochs[strike]);
 
         // mint hodl, y is minted on hodl stake
         hodlMulti.mint(msg.sender, strike, delta);
@@ -106,25 +140,34 @@ contract Vault {
             yMulti.burn(msg.sender, strike, amount);
         } else {
             // Redeem via staked hodl token
-            (address hmUser,
-             uint256 hmTimestamp,
-             uint256 hmStrike,
-             uint256 hmAmount) = hodlMulti.stakes(stakeId);
+            HodlStake storage stk = hodlStakes[stakeId];
 
-            require(hmUser == msg.sender, "V: user");
-            require(hmAmount >= amount, "V: amount");
-            require(hmStrike == strike, "V: strike");
-            require(block.timestamp >= hmTimestamp, "V: timestamp");
-            require(oracle.price(0) >= hmStrike, "V: price");
+            require(stk.user == msg.sender, "redeem user");
+            require(stk.amount >= amount, "redeem amount");
+            require(stk.strike == strike, "redeem strike");
+            require(block.timestamp >= stk.timestamp, "redeem timestamp");
+            require(oracle.price(0) >= stk.strike, "redeem price");
 
             // burn the specified hodl stake
-            hodlMulti.burnStake(stakeId, amount);
+            stk.amount -= amount;
 
-            // checkpoint this strike, to prevent yield accumulation
-            _checkpoint(hmStrike);
+            uint256 epochId = epochs[strike];
+            if (epochId != 0) {
+                // checkpoint this strike, to prevent yield accumulation
+                _checkpoint(epochId);
+
+                terminalYieldPerToken[epochId] = _yieldPerToken();
+                yStaked[epochId] = 0;
+
+                // don't checkpoint again, trigger new epoch
+                epochs[strike] == 0;
+            }
+
+            // update accounting for total staked y token
+            yStakedTotal -= amount;
 
             // burn all staked y tokens at that strike
-            yMulti.burnStrike(hmStrike);
+            yMulti.burnStrike(strike);
         }
 
         amount = _min(amount, stEth.balanceOf(address(this)));
@@ -132,6 +175,73 @@ contract Vault {
 
         deposits -= amount;
     }
+
+    function yStake(uint256 strike, uint256 amount) public returns (uint256) {
+
+        require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
+
+        yMulti.burn(msg.sender, strike, amount);
+
+        uint256 id = nextId++;
+        uint256 epochId = epochs[strike];
+
+        uint256 ypt = _yieldPerToken();
+        yStakes[id] = YStake({
+            user: msg.sender,
+            timestamp: block.timestamp,
+            strike: strike,
+            epochId: epochId,
+            amount: amount,
+            yieldPerTokenClaimed: ypt });
+        yStaked[epochId] += amount;
+        yStakedTotal += amount;
+
+        return id;
+    }
+
+    function claimable(uint256 stakeId) public view returns (uint256) {
+        YStake storage stk = yStakes[stakeId];
+        uint256 ypt;
+
+        if (epochs[stk.strike] == stk.epochId) {
+            // active epoch
+            ypt = _yieldPerToken() - stk.yieldPerTokenClaimed;
+        } else {
+            // passed epoch
+            ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed;
+        }
+
+        return ypt * stk.amount;
+    }
+
+    function hodlStake(uint256 strike, uint256 amount) public returns (uint256) {
+        require(hodlMulti.balanceOf(msg.sender, strike) >= amount, "hodl stake balance");
+
+        hodlMulti.burn(msg.sender, strike, amount);
+        yMulti.mint(msg.sender, strike, amount);
+
+        uint256 id = nextId++;
+        hodlStakes[id] = HodlStake({
+            user: msg.sender,
+            timestamp: block.timestamp,
+            strike: strike,
+            amount: amount });
+        hodlStaked += amount;  // TODO: can omit?
+
+        /* emit HodlStaked(msg.sender, */
+        /*             id, */
+        /*             block.timestamp, */
+        /*             strike, */
+        /*             amount); */
+
+        return id;
+    }
+
+    /* function _hodlBurnStake(uint256 stakeId, uint256 amount) internal { */
+    /*     HodlStake storage stk = stakes[id];  */
+    /*     require(stk.amount >= amount, "YMT: amount"); */
+    /*     stk.amount -= amount; */
+    /* } */
 
     function disburse(address recipient, uint256 amount) external {
         require(msg.sender == address(yMulti));
@@ -141,17 +251,29 @@ contract Vault {
     }
 
     function _yieldPerToken() internal view returns (uint256) {
-        uint256 staked = yMulti.staked();
-        if (staked == 0) return 0;
+        if (yStakedTotal == 0) return 0;
         uint256 deltaCumulative = totalCumulativeYield() - cumulativeYieldAcc;
-        uint256 incr = deltaCumulative * PRECISION_FACTOR / staked;
+        uint256 incr = deltaCumulative * PRECISION_FACTOR / yStakedTotal;
         return yieldPerTokenAcc + incr;
     }
 
-    function cumulativeYield(uint256 strike) public view returns (uint256) {
-        uint256 ypt = _yieldPerToken();
-        return (infos[strike].cumulativeYieldAcc +
-                yMulti.totalSupply(strike) * ypt / PRECISION_FACTOR);
+    function cumulativeYield(uint256 epochId) public view returns (uint256) {
+        require(epochId < nextId, "invalid epoch");
+
+        uint256 ypt;
+        uint256 strike = infos[epochId].strike;
+        if (epochs[strike] == epochId) {
+            // active epoch
+            ypt = (_yieldPerToken()
+                   - infos[epochId].yieldPerTokenAcc);
+        } else {
+            // passed epoch
+            ypt = (terminalYieldPerToken[epochId]
+                   - infos[epochId].yieldPerTokenAcc);
+        }
+
+        return (infos[epochId].cumulativeYieldAcc +
+                yStaked[epochId] * ypt / PRECISION_FACTOR);
     }
 
     function totalCumulativeYield() public view returns (uint256) {

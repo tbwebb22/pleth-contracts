@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.20;
 
 import "forge-std/console.sol"; 
 
@@ -15,9 +15,8 @@ contract YMultiToken is ERC1155, Ownable {
     uint256 public nextId = 1;
     uint256 public staked;
 
-    // strike -> epoch ID
-    mapping (uint256 => uint256) public activeEpochs;
-    mapping (uint256 => uint256) public epochEnds;
+    mapping (uint256 => mapping(address => uint256)) public balances;
+    mapping (uint256 => uint256) public strikeSeqs;
 
     struct Stake {
         address user;
@@ -54,12 +53,16 @@ contract YMultiToken is ERC1155, Ownable {
     event BurnedStake(uint256 indexed id,
                       uint256 amount);
 
-    constructor(string memory uri_, address vault_) ERC1155(uri_) {
+    constructor(string memory uri_, address vault_)
+        Ownable(msg.sender)
+        ERC1155(uri_) {
+
         vault = Vault(vault_);
     }
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
         _mint(user, strike, amount, "");
+        /* uint256 epochId = vault. */
         totalSupply[strike] += amount;
     }
 
@@ -79,42 +82,84 @@ contract YMultiToken is ERC1155, Ownable {
         return yieldPerTokenAcc[strike] + incr;
     }
 
-    function burnStrike(uint256 strike) public returns (uint256) {
-        require(msg.sender == address(vault), "only vault");
-
-        // burns all staked tokens at strike via epoch increment
-        activeEpochs[strike]++;
-        epochEnds[strike] = block.timestamp;
-        staked -= totalSupply[strike];
-        totalSupply[strike] = 0;
+    function balanceOf(address user, uint256 strike) public override view returns (uint256) {
+        uint256 seq = strikeSeqs[strike];
+        return balances[seq][user];
     }
 
-    function stake(uint256 strike, uint256 amount) public returns (uint256) {
-        require(balanceOf(msg.sender, strike) >= amount, "YMT: balance");
+    function burnStrike(uint256 strike) public returns (uint256) {
+        require(msg.sender == address(vault), "only vault");
+        strikeSeqs[strike]++;
+    }
 
-        _burn(msg.sender, strike, amount);
+    function _update(address from,
+                     address to,
+                     uint256[] memory strikes,
+                     uint256[] memory values) internal override {
 
-        if (activeEpochs[strike] == 0) {
-            activeEpochs[strike]++;
+        require(strikes.length == values.length, "mismatched update length");
+
+        address operator = _msgSender();
+
+        for (uint256 i = 0; i < strikes.length; ++i) {
+            uint256 strike = strikes[i];
+            uint256 value = values[i];
+            uint256 seq = strikeSeqs[strike];
+
+            if (from != address(0)) {
+                uint256 fromBalance = balances[seq][from];
+                require(fromBalance >= value, "insufficient balance");
+                unchecked {
+                    // Overflow not possible: value <= fromBalance
+                    balances[seq][from] = fromBalance - value;
+                }
+            }
+
+            if (to != address(0)) {
+                balances[seq][to] += value;
+            }
         }
 
-        uint256 id = nextId++;
-        stakes[id] = Stake({
-            user: msg.sender,
-            timestamp: block.timestamp,
-            strike: strike,
-            epochId: activeEpochs[strike],
-            amount: amount });
+        if (strikes.length == 1) {
+            uint256 strike = strikes[0];
+            uint256 value = values[0];
+            emit TransferSingle(operator, from, to, strike, value);
+        } else {
+            emit TransferBatch(operator, from, to, strikes, values);
+        }
+    }
 
-        staked += amount;
+    /* function stake(uint256 strike, uint256 amount) public returns (uint256) { */
+    /*     require(balanceOf(msg.sender, strike) >= amount, "YMT: balance"); */
 
-        emit Staked(msg.sender,
-                    id,
-                    block.timestamp,
-                    strike,
-                    amount);
+    /*     _burn(msg.sender, strike, amount); */
 
-        return id;
+    /*     /\* if (activeEpochs[strike] == 0) { *\/ */
+    /*     /\*     activeEpochs[strike]++; *\/ */
+    /*     /\* } *\/ */
+
+    /*     uint256 id = nextId++; */
+    /*     stakes[id] = Stake({ */
+    /*         user: msg.sender, */
+    /*         timestamp: block.timestamp, */
+    /*         strike: strike, */
+    /*         epochId: vault.epochs(strike), */
+    /*         yieldPerTokenAcc: vault. */
+    /*         claimableAcc: 0, */
+    /*         amount: amount }); */
+
+    /*     staked += amount; */
+
+    /*     emit Staked(msg.sender, */
+    /*                 id, */
+    /*                 block.timestamp, */
+    /*                 strike, */
+    /*                 amount); */
+
+    /*     return id; */
+    /* } */
+
+    function claimable(uint256 id) public view returns (uint256) {
     }
 
     /* function unstake(uint256 id, uint256 amount) public { */
@@ -142,24 +187,4 @@ contract YMultiToken is ERC1155, Ownable {
     /*     emit BurnedStake(id, amount); */
     /* } */
 
-    function _beforeTokenTransfer(
-        address operator,
-        address from,
-        address to,
-        uint256[] memory strikes,
-        uint256[] memory amounts,
-        bytes memory data
-    ) internal override {
-
-        console.log("beforeTokenTransfer");
-
-        for (uint256 i = 0; i < strikes.length; i++) {
-            uint256 strike = strikes[i];
-            uint256 ypt = _yieldPerToken(strike);
-            /* infos[from].accClaimable = claimable(from); */
-            infos[from][strike].yieldPerTokenClaimed = ypt;
-            /* infos[to].accClaimable = claimable(to); */
-            infos[to][strike].yieldPerTokenClaimed = ypt;
-        }
-    }
 }
