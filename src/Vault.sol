@@ -8,8 +8,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStEth } from "./interfaces/IStEth.sol";
 import { IOracle } from "./interfaces/IOracle.sol";
 
-import { HodlMultiToken } from "./HodlMultiToken.sol";
-import { YMultiToken } from "./YMultiToken.sol";
+import { HodlMultiToken } from "./multi/HodlMultiToken.sol";
+import { YMultiToken } from "./multi/YMultiToken.sol";
+import { HodlToken } from  "./single/HodlToken.sol";
+
 
 contract Vault {
     using SafeERC20 for IERC20;
@@ -44,13 +46,9 @@ contract Vault {
         uint256 amount;
     }
     mapping (uint256 => HodlStake) public hodlStakes;
-    uint256 public hodlStakedTotal;
 
     uint256 public deposits;
     bool public didTrigger = false;
-
-    /* mapping (uint256 => uint256) public activeEpochs; */
-    /* mapping (uint256 => uint256) public epochEnds; */
 
     uint256 public claimed;
 
@@ -81,19 +79,16 @@ contract Vault {
         yMulti = new YMultiToken("", address(this));
     }
 
+    function deployERC20(uint256 strike) public returns (address) {
+        HodlToken hodl = new HodlToken(address(hodlMulti), strike);
+        hodlMulti.authorize(address(hodl));
+
+        return address(hodl);
+    }
+
     function _min(uint256 x, uint256 y) internal pure returns (uint256) {
         return x < y ? x : y;
     }
-
-    /* function trigger(uint256 strike, uint80 roundId) external { */
-    /*     uint256 epochId = activeEpochs[strike]; */
-    /*     require(epochEnds[epochId] == 0, "V: already triggered"); */
-    /*     require(oracle.timestamp(roundId) >= epochEnds[epochId - 1], "V: old round"); */
-    /*     require(oracle.price(roundId) >= strike, "V: price low"); */
-    /*     epochEnds[epochId] = block.timestamp; */
-    /*     activeEpochs[strike] += 1; */
-    /*     emit Triggered(strike, block.timestamp); */
-    /* } */
 
     function _checkpoint(uint256 epoch) internal {
         uint256 ypt = yieldPerToken();
@@ -150,7 +145,6 @@ contract Vault {
 
             // burn the specified hodl stake
             stk.amount -= amount;
-            hodlStakedTotal -= amount;
 
             uint256 epochId = epochs[strike];
 
@@ -230,13 +224,6 @@ contract Vault {
             timestamp: block.timestamp,
             strike: strike,
             amount: amount });
-        hodlStakedTotal += amount;  // TODO: can omit?
-
-        /* emit HodlStaked(msg.sender, */
-        /*             id, */
-        /*             block.timestamp, */
-        /*             strike, */
-        /*             amount); */
 
         return id;
     }

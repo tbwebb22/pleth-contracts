@@ -8,6 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStEth } from "../src/interfaces/IStEth.sol";
 
 import { Vault } from  "../src/Vault.sol";
+import { HodlToken } from  "../src/single/HodlToken.sol";
 
 import { BaseTest } from  "./BaseTest.sol";
 import { FakeOracle } from  "./helpers/FakeOracle.sol";
@@ -241,10 +242,68 @@ contract VaultTest is BaseTest {
         assertEq(vault.yStaked(epoch4), 4 ether);
         assertEq(vault.yStakedTotal(), 8 ether);
 
-        assertEq(vault.cumulativeYield(epoch1), 0.01 ether, "epoch1");
-        assertEq(vault.cumulativeYield(epoch2), 0.28 ether - 12, "epoch2");
-        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1, "epoch3");  // [strike3] redeemed, so no increase
-        assertEq(vault.cumulativeYield(epoch4), 0.04 ether - 4, "epoch4");  // [strike3] staked in new epoch
+        assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
+        assertEq(vault.cumulativeYield(epoch2), 0.28 ether - 12);
+        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);  // [strike3] redeemed, so no increase
+        assertEq(vault.cumulativeYield(epoch4), 0.04 ether - 4);  // [strike3] staked in new epoch
+    }
+
+    function testERC20() public {
+        testVault();
+
+        uint256 strike1 = 2000_00000000;
+        uint256 strike2 = 3000_00000000;
+        uint256 strike3 = 4000_00000000;
+
+        address hodl1Address = vault.deployERC20(strike1);
+        HodlToken hodl1 = HodlToken(hodl1Address);
+
+        assertEq(vault.hodlMulti().totalSupply(strike1), hodl1.totalSupply());
+
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), hodl1.balanceOf(alice));
+        assertEq(vault.hodlMulti().balanceOf(bob, strike1), hodl1.balanceOf(bob));
+        assertEq(vault.hodlMulti().balanceOf(chad, strike1), hodl1.balanceOf(chad));
+        assertEq(vault.hodlMulti().balanceOf(degen, strike1), hodl1.balanceOf(degen));
+
+        vm.startPrank(alice);
+        hodl1.transfer(bob, 0.1 ether);
+        vm.stopPrank();
+
+        assertEq(hodl1.balanceOf(alice), 0.9 ether - 1);
+        assertEq(hodl1.balanceOf(bob), 0.1 ether);
+
+        vm.startPrank(degen);
+        vm.expectRevert("not authorized");
+        hodl1.transferFrom(alice, chad, 0.2 ether);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        hodl1.approve(degen, 0.2 ether);
+        vm.stopPrank();
+
+        assertEq(hodl1.allowance(alice, degen), 0.2 ether);
+
+        vm.startPrank(degen);
+        vm.expectRevert("not authorized");
+        hodl1.transferFrom(alice, chad, 0.3 ether);
+
+        hodl1.transferFrom(alice, chad, 0.2 ether);
+
+        vm.expectRevert("not authorized");
+        hodl1.transferFrom(alice, chad, 0.2 ether);
+        vm.stopPrank();
+
+        assertEq(hodl1.balanceOf(alice), 0.7 ether - 1);
+        assertEq(hodl1.balanceOf(bob), 0.1 ether);
+        assertEq(hodl1.balanceOf(chad), 0.2 ether);
+        assertEq(hodl1.balanceOf(degen), 0);
+
+        assertEq(vault.hodlMulti().totalSupply(strike1), hodl1.totalSupply());
+
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), hodl1.balanceOf(alice));
+        assertEq(vault.hodlMulti().balanceOf(bob, strike1), hodl1.balanceOf(bob));
+        assertEq(vault.hodlMulti().balanceOf(chad, strike1), hodl1.balanceOf(chad));
+        assertEq(vault.hodlMulti().balanceOf(degen, strike1), hodl1.balanceOf(degen));
     }
 
     function simulateYield(uint256 amount) internal {

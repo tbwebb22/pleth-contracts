@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import { Ownable } from  "@openzeppelin/contracts/access/Ownable.sol";
 
-import { Vault } from "./Vault.sol";
+import { Vault } from "../Vault.sol";
 
 contract YMultiToken is ERC1155, Ownable {
 
@@ -62,7 +62,6 @@ contract YMultiToken is ERC1155, Ownable {
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
         _mint(user, strike, amount, "");
-        /* uint256 epochId = vault. */
         totalSupply[strike] += amount;
     }
 
@@ -87,7 +86,7 @@ contract YMultiToken is ERC1155, Ownable {
         return balances[seq][user];
     }
 
-    function burnStrike(uint256 strike) public returns (uint256) {
+    function burnStrike(uint256 strike) public {
         require(msg.sender == address(vault), "only vault");
         strikeSeqs[strike]++;
     }
