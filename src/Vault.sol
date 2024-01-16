@@ -26,6 +26,8 @@ contract Vault {
     HodlMultiToken public immutable hodlMulti;
     YMultiToken public immutable yMulti;
 
+    mapping (uint256 => address) public deployments;
+
     struct YStake {
         address user;
         uint256 timestamp;
@@ -80,8 +82,14 @@ contract Vault {
     }
 
     function deployERC20(uint256 strike) public returns (address) {
+        if (deployments[strike] != address(0)) {
+            return deployments[strike];
+        }
+
         HodlToken hodl = new HodlToken(address(hodlMulti), strike);
         hodlMulti.authorize(address(hodl));
+
+        deployments[strike] = address(hodl);
 
         return address(hodl);
     }

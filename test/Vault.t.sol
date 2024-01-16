@@ -256,6 +256,10 @@ contract VaultTest is BaseTest {
         uint256 strike3 = 4000_00000000;
 
         address hodl1Address = vault.deployERC20(strike1);
+
+        // deploys should be saved
+        assertEq(hodl1Address, vault.deployERC20(strike1));
+
         HodlToken hodl1 = HodlToken(hodl1Address);
 
         assertEq(vault.hodlMulti().totalSupply(strike1), hodl1.totalSupply());
