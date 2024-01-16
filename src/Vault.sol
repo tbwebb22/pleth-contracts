@@ -115,9 +115,7 @@ contract Vault {
         deposits += delta;
 
         // create the epoch if needed
-        console.log("minting, check if need new epoch", epochs[strike], strike);
         if (epochs[strike] == 0) {
-            console.log("set new epoch");
             infos[nextId].strike = strike;
             epochs[strike] = nextId++;
         }
@@ -141,8 +139,6 @@ contract Vault {
             hodlMulti.burn(msg.sender, strike, amount);
             yMulti.burn(msg.sender, strike, amount);
         } else {
-            console.log("redeem via staked", strike, stakeId);
-
             // Redeem via staked hodl token
             HodlStake storage stk = hodlStakes[stakeId];
 
@@ -158,25 +154,20 @@ contract Vault {
 
             uint256 epochId = epochs[strike];
 
-            console.log("the epochId is", epochId);
-
             if (epochId != 0) {
                 // checkpoint this strike, to prevent yield accumulation
                 _checkpoint(epochId);
 
+                // record the ypt at redemption time
                 terminalYieldPerToken[epochId] = yieldPerToken();
 
-                // update accounting for total staked y token
+                // update accounting for staked y tokens
                 yStakedTotal -= yStaked[epochId];
                 yStaked[epochId] = 0;
 
                 // don't checkpoint again, trigger new epoch
-                console.log("set strike epochId->0", strike);
                 epochs[strike] = 0;
             }
-
-            /* // update accounting for total staked y token */
-            /* yStakedTotal -= amount; */
 
             // burn all staked y tokens at that strike
             yMulti.burnStrike(strike);
@@ -250,12 +241,6 @@ contract Vault {
         return id;
     }
 
-    /* function _hodlBurnStake(uint256 stakeId, uint256 amount) internal { */
-    /*     HodlStake storage stk = stakes[id];  */
-    /*     require(stk.amount >= amount, "YMT: amount"); */
-    /*     stk.amount -= amount; */
-    /* } */
-
     function disburse(address recipient, uint256 amount) external {
         require(msg.sender == address(yMulti));
 
@@ -276,22 +261,11 @@ contract Vault {
         uint256 ypt;
         uint256 strike = infos[epochId].strike;
         if (epochs[strike] == epochId) {
-            console.log("compute for active epoch", strike, epochId);
-            uint256 y = yieldPerToken();
-            console.log("-ypt()", y);
-            console.log("-acc  ", infos[epochId].yieldPerTokenAcc);
-            console.log("-cum  ", infos[epochId].cumulativeYieldAcc);
-            console.log("-num  ", yStaked[epochId]);
-
             // active epoch
-            ypt = (y
-                   - infos[epochId].yieldPerTokenAcc);
+            ypt = yieldPerToken() - infos[epochId].yieldPerTokenAcc;
         } else {
-            console.log("compute for passed epoch", strike, epochId);
-
             // passed epoch
-            ypt = (terminalYieldPerToken[epochId]
-                   - infos[epochId].yieldPerTokenAcc);
+            ypt = terminalYieldPerToken[epochId] - infos[epochId].yieldPerTokenAcc;
         }
 
         return (infos[epochId].cumulativeYieldAcc +
