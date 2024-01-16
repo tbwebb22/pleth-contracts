@@ -110,7 +110,6 @@ contract YMultiToken is ERC1155, Ownable {
                 uint256 fromBalance = balances[seq][from];
                 require(fromBalance >= value, "insufficient balance");
                 unchecked {
-                    // Overflow not possible: value <= fromBalance
                     balances[seq][from] = fromBalance - value;
                 }
             }
@@ -128,63 +127,4 @@ contract YMultiToken is ERC1155, Ownable {
             emit TransferBatch(operator, from, to, strikes, values);
         }
     }
-
-    /* function stake(uint256 strike, uint256 amount) public returns (uint256) { */
-    /*     require(balanceOf(msg.sender, strike) >= amount, "YMT: balance"); */
-
-    /*     _burn(msg.sender, strike, amount); */
-
-    /*     /\* if (activeEpochs[strike] == 0) { *\/ */
-    /*     /\*     activeEpochs[strike]++; *\/ */
-    /*     /\* } *\/ */
-
-    /*     uint256 id = nextId++; */
-    /*     stakes[id] = Stake({ */
-    /*         user: msg.sender, */
-    /*         timestamp: block.timestamp, */
-    /*         strike: strike, */
-    /*         epochId: vault.epochs(strike), */
-    /*         yieldPerTokenAcc: vault. */
-    /*         claimableAcc: 0, */
-    /*         amount: amount }); */
-
-    /*     staked += amount; */
-
-    /*     emit Staked(msg.sender, */
-    /*                 id, */
-    /*                 block.timestamp, */
-    /*                 strike, */
-    /*                 amount); */
-
-    /*     return id; */
-    /* } */
-
-    function claimable(uint256 id) public view returns (uint256) {
-    }
-
-    /* function unstake(uint256 id, uint256 amount) public { */
-    /*     Stake storage stk = stakes[id];  */
-    /*     require(stk.user == msg.sender, "YMT: user"); */
-    /*     require(stk.amount >= amount, "YMT: amount"); */
-
-    /*     stk.amount -= amount; */
-    /*     _mint(msg.sender, stk.strike, amount, ""); */
-    /*     staked -= amount; */
-
-    /*     emit Unstaked(msg.sender, */
-    /*                   id, */
-    /*                   block.timestamp, */
-    /*                   stk.strike, */
-    /*                   amount); */
-    /* } */
-
-    /* function burnStake(uint256 id, uint256 amount) public onlyOwner { */
-    /*     Stake storage stk = stakes[id];  */
-    /*     require(stk.amount >= amount, "YMT: amount"); */
-
-    /*     stk.amount -= amount; */
-
-    /*     emit BurnedStake(id, amount); */
-    /* } */
-
 }

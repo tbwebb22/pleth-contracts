@@ -44,7 +44,7 @@ contract Vault {
         uint256 amount;
     }
     mapping (uint256 => HodlStake) public hodlStakes;
-    uint256 public hodlStaked;
+    uint256 public hodlStakedTotal;
 
     uint256 public deposits;
     bool public didTrigger = false;
@@ -65,7 +65,7 @@ contract Vault {
     mapping (uint256 => EpochInfo) infos;
 
     // Map strike to active epoch ID
-    mapping (uint256 => uint256) epochs;
+    mapping (uint256 => uint256) public epochs;
 
     event Triggered(uint256 indexed strike,
                     uint256 indexed epoch,
@@ -96,7 +96,7 @@ contract Vault {
     /* } */
 
     function _checkpoint(uint256 epoch) internal {
-        uint256 ypt = _yieldPerToken();
+        uint256 ypt = yieldPerToken();
         uint256 total = totalCumulativeYield();
 
         infos[epoch].cumulativeYieldAcc = cumulativeYield(epoch);
@@ -115,7 +115,9 @@ contract Vault {
         deposits += delta;
 
         // create the epoch if needed
+        console.log("minting, check if need new epoch", epochs[strike], strike);
         if (epochs[strike] == 0) {
+            console.log("set new epoch");
             infos[nextId].strike = strike;
             epochs[strike] = nextId++;
         }
@@ -139,6 +141,8 @@ contract Vault {
             hodlMulti.burn(msg.sender, strike, amount);
             yMulti.burn(msg.sender, strike, amount);
         } else {
+            console.log("redeem via staked", strike, stakeId);
+
             // Redeem via staked hodl token
             HodlStake storage stk = hodlStakes[stakeId];
 
@@ -150,21 +154,29 @@ contract Vault {
 
             // burn the specified hodl stake
             stk.amount -= amount;
+            hodlStakedTotal -= amount;
 
             uint256 epochId = epochs[strike];
+
+            console.log("the epochId is", epochId);
+
             if (epochId != 0) {
                 // checkpoint this strike, to prevent yield accumulation
                 _checkpoint(epochId);
 
-                terminalYieldPerToken[epochId] = _yieldPerToken();
+                terminalYieldPerToken[epochId] = yieldPerToken();
+
+                // update accounting for total staked y token
+                yStakedTotal -= yStaked[epochId];
                 yStaked[epochId] = 0;
 
                 // don't checkpoint again, trigger new epoch
-                epochs[strike] == 0;
+                console.log("set strike epochId->0", strike);
+                epochs[strike] = 0;
             }
 
-            // update accounting for total staked y token
-            yStakedTotal -= amount;
+            /* // update accounting for total staked y token */
+            /* yStakedTotal -= amount; */
 
             // burn all staked y tokens at that strike
             yMulti.burnStrike(strike);
@@ -179,13 +191,14 @@ contract Vault {
     function yStake(uint256 strike, uint256 amount) public returns (uint256) {
 
         require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
-
-        yMulti.burn(msg.sender, strike, amount);
-
-        uint256 id = nextId++;
         uint256 epochId = epochs[strike];
 
-        uint256 ypt = _yieldPerToken();
+        _checkpoint(epochId);
+
+        yMulti.burn(msg.sender, strike, amount);
+        uint256 id = nextId++;
+
+        uint256 ypt = yieldPerToken();
         yStakes[id] = YStake({
             user: msg.sender,
             timestamp: block.timestamp,
@@ -205,7 +218,7 @@ contract Vault {
 
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
-            ypt = _yieldPerToken() - stk.yieldPerTokenClaimed;
+            ypt = yieldPerToken() - stk.yieldPerTokenClaimed;
         } else {
             // passed epoch
             ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed;
@@ -226,7 +239,7 @@ contract Vault {
             timestamp: block.timestamp,
             strike: strike,
             amount: amount });
-        hodlStaked += amount;  // TODO: can omit?
+        hodlStakedTotal += amount;  // TODO: can omit?
 
         /* emit HodlStaked(msg.sender, */
         /*             id, */
@@ -250,7 +263,7 @@ contract Vault {
         claimed += amount;
     }
 
-    function _yieldPerToken() internal view returns (uint256) {
+    function yieldPerToken() public view returns (uint256) {
         if (yStakedTotal == 0) return 0;
         uint256 deltaCumulative = totalCumulativeYield() - cumulativeYieldAcc;
         uint256 incr = deltaCumulative * PRECISION_FACTOR / yStakedTotal;
@@ -263,10 +276,19 @@ contract Vault {
         uint256 ypt;
         uint256 strike = infos[epochId].strike;
         if (epochs[strike] == epochId) {
+            console.log("compute for active epoch", strike, epochId);
+            uint256 y = yieldPerToken();
+            console.log("-ypt()", y);
+            console.log("-acc  ", infos[epochId].yieldPerTokenAcc);
+            console.log("-cum  ", infos[epochId].cumulativeYieldAcc);
+            console.log("-num  ", yStaked[epochId]);
+
             // active epoch
-            ypt = (_yieldPerToken()
+            ypt = (y
                    - infos[epochId].yieldPerTokenAcc);
         } else {
+            console.log("compute for passed epoch", strike, epochId);
+
             // passed epoch
             ypt = (terminalYieldPerToken[epochId]
                    - infos[epochId].yieldPerTokenAcc);

@@ -111,6 +111,8 @@ contract VaultTest is BaseTest {
         assertEq(vault.yMulti().balanceOf(bob, strike2), 0);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
 
+        assertEq(vault.yStakedTotal(), 13 ether - 1);
+
         // simulate yield, stETH balance grows, verify y token receives yield
         simulateYield(0.13 ether + 1);
 
@@ -134,14 +136,13 @@ contract VaultTest is BaseTest {
         vault.redeem(strike1, 1 ether, stake1);
         vm.stopPrank();
 
+        assertEq(vault.yStakedTotal(), 12 ether - 1);
+
         // unstaked y tokens should be burned
 
         assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
 
-        return;
-
         assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
-
         assertEq(IERC20(stEth).balanceOf(bob), 0);
         assertEq(IERC20(stEth).balanceOf(chad), 0);
 
@@ -153,55 +154,165 @@ contract VaultTest is BaseTest {
         assertEq(vault.cumulativeYield(epoch2), 0.08 ether);
         assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);
 
-        return;
-
         // move price above both strike2 and strike3, but only strike3 claims
 
         oracle.setPrice(strike3 + 1);
 
         assertEq(IERC20(stEth).balanceOf(chad), 0 ether);
 
-        /* vm.startPrank(chad); */
-        /* vault.redeem(strike3, 4 ether, stake3); */
-        /* vm.stopPrank(); */
+        assertEq(vault.yStaked(epoch1), 0);
+        assertEq(vault.yStaked(epoch2), 4 ether);
+        assertEq(vault.yStaked(epoch3), 8 ether - 1);
+        assertEq(vault.yStakedTotal(), 12 ether - 1);
 
-        /* assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1); */
-        /* assertEq(IERC20(stEth).balanceOf(bob), 0); */
-        /* assertEq(IERC20(stEth).balanceOf(chad), 4 ether - 1); */
+        vm.startPrank(chad);
+        vault.redeem(strike3, 4 ether, stake3);
+        vm.stopPrank();
 
-        /* simulateYield(0.08 ether); */
+        assertEq(vault.yStaked(epoch1), 0);
+        assertEq(vault.yStaked(epoch2), 4 ether);
+        assertEq(vault.yStaked(epoch3), 0);
+        assertEq(vault.yStakedTotal(), 4 ether);
 
-        /* assertEq(vault.cumulativeYield(strike1), 0.01 ether); */
-        /* assertEq(vault.cumulativeYield(strike2), 0.16 ether - 1); */
-        /* assertEq(vault.cumulativeYield(strike3), 0.16 ether); */
+        assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
+        assertEq(IERC20(stEth).balanceOf(bob), 0);
+        assertEq(IERC20(stEth).balanceOf(chad), 4 ether - 1);
 
-        /* // can mint at strike3 again, but only once price goes down */
-        /* vm.startPrank(degen); */
-        /* vm.expectRevert("V: strike too low"); */
-        /* vault.mint{value: 4 ether}(strike3); */
-        /* vm.stopPrank(); */
+        simulateYield(0.08 ether);
 
-        /* oracle.setPrice(strike3 - 1); */
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
 
-        /* vm.startPrank(degen); */
-        /* vault.mint{value: 4 ether}(strike3); */
-        /* vm.stopPrank(); */
+        assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
+        assertEq(vault.cumulativeYield(epoch2), 0.16 ether - 4);  // not redeemed, gets all the increase
+        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);  // [strike3] redeemed, so no increase
 
-        /* assertEq(vault.cumulativeYield(strike3), 0.16 ether); */
+        // can mint at strike3 again, but only once price goes down
+        vm.startPrank(chad);
+        vm.expectRevert("strike too low");
+        vault.mint{value: 4 ether}(strike3);
+        vm.stopPrank();
 
-        /* // degen gets some yield, verify address level accounting */
+        oracle.setPrice(strike3 - 1);
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("->mint");
+
+        vm.startPrank(chad);
+        uint256 epoch4 = vault.nextId();
+        vault.mint{value: 8 ether}(strike3);
+        assertEq(vault.hodlMulti().balanceOf(chad, strike3), 8 ether);
+        vm.stopPrank();
+
+        // epoch for strike3 unchanged until redeem
+        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);
+
+        // degen gets some yield, verify address level accounting
         
-        /* simulateYield(0.08 ether); */
+        simulateYield(0.08 ether);
 
-        /* assertEq(vault.cumulativeYield(strike1), 0.01 ether); */
-        /* assertEq(vault.cumulativeYield(strike2), 0.24 ether - 5); */
-        /* assertEq(vault.cumulativeYield(strike3), 0.16 ether); */
+        assertEq(vault.yStaked(epoch1), 0);
+        assertEq(vault.yStaked(epoch2), 4 ether);
+        assertEq(vault.yStaked(epoch3), 0);
 
-        /* // transfer y tokens, verify address level accounting */
-        /* uint256 x = vault.yMulti().claimable(stake1); */
-        /* console.log("alice stake1", x); */
+        assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
+        assertEq(vault.cumulativeYield(epoch2), 0.24 ether - 8);
+        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);  // [strike3] redeemed, so no increase
+        assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield
 
-        /* // simulate yield after y token transfer, verify address level accounting */
+        // transfer y tokens, verify address level accounting
+        vm.startPrank(chad);
+        assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
+        uint256 stake7 = vault.hodlStake(strike3, 8 ether);
+        assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether);
+        vault.yMulti().safeTransferFrom(chad, degen, strike3, 4 ether, "");
+        vm.stopPrank();
+
+        assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield
+
+        // simulate yield after y token transfer, verify address level accounting
+        console.log("yStaked before", vault.yStakedTotal());
+        vm.startPrank(degen);
+        uint256 stake8 = vault.yStake(strike3, 4 ether);
+        vm.stopPrank();
+        console.log("yStaked after ", vault.yStakedTotal());
+
+        console.log("- staked epoch1", vault.yStaked(epoch1));
+        console.log("- staked epoch2", vault.yStaked(epoch2));
+        console.log("- staked epoch3", vault.yStaked(epoch3));
+        console.log("- staked epoch4", vault.yStaked(epoch4));
+
+        assertEq(vault.yStakedTotal(), 8 ether);
+
+        assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("====");
+        console.log("- cumyield epcoh1", vault.cumulativeYield(epoch1));
+        console.log("- cumyield epcoh2", vault.cumulativeYield(epoch2));
+        console.log("- cumyield epcoh3", vault.cumulativeYield(epoch3));
+        console.log("- cumyield epcoh4", vault.cumulativeYield(epoch4));
+
+        {
+            /* uint256 bef = vault.totalCumulativeYield(); */
+            /* uint256 yptBef = vault.yieldPerToken(); */
+            simulateYield(0.08 ether);
+            /* uint256 aft = vault.totalCumulativeYield(); */
+            /* uint256 yptAft = vault.yieldPerToken(); */
+
+            /* console.log(""); */
+            /* console.log(""); */
+            /* console.log("--"); */
+            /* console.log("bef", bef); */
+            /* console.log("aft", aft); */
+            /* console.log("--"); */
+            /* console.log("ypt bef", yptBef); */
+            /* console.log("ypt aft", yptAft); */
+            /* console.log("--"); */
+        }
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("====");
+
+        console.log("- staked epoch1", vault.yStaked(epoch1));
+        console.log("- staked epoch2", vault.yStaked(epoch2));
+        console.log("- staked epoch3", vault.yStaked(epoch3));
+        console.log("- staked epoch4", vault.yStaked(epoch4));
+        console.log("");
+        console.log("-- Y Staked total", vault.yStakedTotal());
+        console.log("");
+        console.log("- cumyield epcoh1", vault.cumulativeYield(epoch1));
+        console.log("- cumyield epcoh2", vault.cumulativeYield(epoch2));
+        console.log("- cumyield epcoh3", vault.cumulativeYield(epoch3));
+        console.log("- cumyield epcoh4", vault.cumulativeYield(epoch4));
+
+        /* uint256 x = vault.cumulativeYield(epoch2); */
+        /* console.log("x:", x); */
+
+        assertEq(vault.yStaked(epoch1), 0);
+        assertEq(vault.yStaked(epoch2), 4 ether);
+        assertEq(vault.yStaked(epoch3), 0);
+        assertEq(vault.yStaked(epoch4), 4 ether);
+        assertEq(vault.yStakedTotal(), 8 ether);
+
+        assertEq(vault.cumulativeYield(epoch1), 0.01 ether, "epoch1");
+        assertEq(vault.cumulativeYield(epoch2), 0.28 ether - 12, "epoch2");
+        assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1, "epoch3");  // [strike3] redeemed, so no increase
+        assertEq(vault.cumulativeYield(epoch4), 0.04 ether - 4, "epoch4");  // [strike3] staked in new epoch
     }
 
     function simulateYield(uint256 amount) internal {
