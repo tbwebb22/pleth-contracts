@@ -71,6 +71,9 @@ contract Vault {
                     uint256 indexed epoch,
                     uint256 timestamp);
 
+    event Mint(address indexed user,
+               uint256 indexed strike,
+               uint256 amount);
 
     constructor(address stEth_,
                 address oracle_) {
@@ -128,6 +131,8 @@ contract Vault {
 
         // mint hodl, y is minted on hodl stake
         hodlMulti.mint(msg.sender, strike, delta);
+
+        emit Mint(msg.sender, strike, delta);
     }
 
     function redeem(uint256 strike,
