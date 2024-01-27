@@ -210,6 +210,10 @@ contract Vault {
         return id;
     }
 
+    function yUnstake(uint256 strike, uint256 amount) public {
+        // TODO
+    }
+
     function claimable(uint256 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt;
@@ -239,6 +243,10 @@ contract Vault {
             amount: amount });
 
         return id;
+    }
+
+    function hodlUnstake(uint256 strike, uint256 amount) public {
+        // TODO
     }
 
     function disburse(address recipient, uint256 amount) external {
