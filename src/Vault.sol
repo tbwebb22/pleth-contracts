@@ -145,6 +145,11 @@ contract Vault {
         emit Mint(msg.sender, strike, delta);
     }
 
+    function canRedeem(uint256 stakeId) external returns (bool) {
+        HodlStake storage stk = hodlStakes[stakeId];
+        return block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike;
+    }
+
     function redeem(uint256 strike,
                     uint256 amount,
                     uint256 stakeId) external {
