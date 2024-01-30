@@ -210,10 +210,6 @@ contract Vault {
         return id;
     }
 
-    function yUnstake(uint256 strike, uint256 amount) public {
-        // TODO
-    }
-
     function claimable(uint256 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt;
@@ -227,6 +223,14 @@ contract Vault {
         }
 
         return ypt * stk.amount;
+    }
+
+
+    function claim(uint256 stakeId) public {
+        YStake storage stk = yStakes[stakeId];
+        require(stk.user == msg.sender, "y claim user");
+        uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
+        stEth.transfer(msg.sender, amount);
     }
 
     function hodlStake(uint256 strike, uint256 amount) public returns (uint256) {
@@ -243,17 +247,6 @@ contract Vault {
             amount: amount });
 
         return id;
-    }
-
-    function hodlUnstake(uint256 strike, uint256 amount) public {
-        // TODO
-    }
-
-    function disburse(address recipient, uint256 amount) external {
-        require(msg.sender == address(yMulti));
-
-        IERC20(stEth).safeTransfer(recipient, amount);
-        claimed += amount;
     }
 
     function yieldPerToken() public view returns (uint256) {
