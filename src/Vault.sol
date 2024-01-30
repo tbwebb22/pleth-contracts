@@ -75,6 +75,14 @@ contract Vault {
                uint256 indexed strike,
                uint256 amount);
 
+    event HodlStaked(address indexed user,
+                    uint256 indexed strike,
+                    uint256 amount);
+
+    event YStaked(address indexed user,
+                  uint256 indexed strike,
+                  uint256 amount);
+
     constructor(address stEth_,
                 address oracle_) {
         stEth = IStEth(stEth_);
@@ -207,6 +215,8 @@ contract Vault {
         yStaked[epochId] += amount;
         yStakedTotal += amount;
 
+        emit YStaked(msg.sender, strike, amount);
+
         return id;
     }
 
@@ -245,6 +255,8 @@ contract Vault {
             timestamp: block.timestamp,
             strike: strike,
             amount: amount });
+
+        emit HodlStaked(msg.sender, strike, amount);
 
         return id;
     }
