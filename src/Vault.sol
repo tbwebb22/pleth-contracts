@@ -145,7 +145,7 @@ contract Vault {
         emit Mint(msg.sender, strike, delta);
     }
 
-    function canRedeem(uint256 stakeId) external returns (bool) {
+    function canRedeem(uint256 stakeId) external view returns (bool) {
         HodlStake storage stk = hodlStakes[stakeId];
         return block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike;
     }
@@ -245,6 +245,9 @@ contract Vault {
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y claim user");
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
+
+        // TODO: update claimed tracking to avoid double claims + write tests
+
         stEth.transfer(msg.sender, amount);
     }
 

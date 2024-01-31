@@ -18,6 +18,7 @@ contract BaseScript is Script {
 
     // Addresses that vary by network
     address stEth;
+    address weth;
     address ethPriceFeed;
 
     function eq(string memory str1, string memory str2) public pure returns (bool) {
@@ -31,6 +32,7 @@ contract BaseScript is Script {
 
             stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+            weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
         } else if (eq(vm.envString("NETWORK"), "localhost")) {
             pk = vm.envUint("LOCALHOST_PRIVATE_KEY");
@@ -39,6 +41,7 @@ contract BaseScript is Script {
             // Mainnet addresses
             stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+            weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
             // Goerli Addresses
             /* stEth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */
@@ -51,6 +54,7 @@ contract BaseScript is Script {
             // Mainnet addresses
             stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+            weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
             // Goerli Addresses
             /* stEth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */

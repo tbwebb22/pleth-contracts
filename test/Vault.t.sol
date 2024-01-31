@@ -38,8 +38,6 @@ contract VaultTest is BaseTest {
 
     function setUp() public {
         init();
-
-        // pool = new UniswapV3LiquidityPool(address(uniswapV3Pool), arbitrumSwapRouter, arbitrumQuoterV2);
     }
 
     function testVault() public {
@@ -334,7 +332,6 @@ contract VaultTest is BaseTest {
         testVault();
 
         uint256 strike1 = 2000_00000000;
-
         address hodl1Address = vault.deployERC20(strike1);
 
         IERC20 hodl1 = IERC20(hodl1Address);
@@ -350,9 +347,6 @@ contract VaultTest is BaseTest {
             uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).createPool(token0, token1, 3000));
             IUniswapV3Pool(uniswapV3Pool).initialize(79228162514264337593543950336);
         }
-        pool = new UniswapV3LiquidityPool(address(uniswapV3Pool),
-                                          mainnet_SwapRouter,
-                                          mainnet_QuoterV2);
 
         vm.deal(alice, 10 ether);
 

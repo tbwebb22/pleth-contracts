@@ -44,7 +44,7 @@ contract HodlMultiToken is ERC1155, Ownable {
         }
     }
 
-    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory data) public override {
+    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory) public override {
         address sender = _msgSender();
 
         if (from != sender &&
