@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "forge-std/console.sol";
+
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { HodlMultiToken } from "../multi/HodlMultiToken.sol";
 
 contract HodlToken is IERC20 {
-/* contract HodlToken { */
 
     mapping(address => mapping(address => uint256)) private _allowances;
 
@@ -48,6 +49,7 @@ contract HodlToken is IERC20 {
         uint256 fromBalance = hodlMulti.balanceOf(from, strike);
         require(fromBalance >= amount, "insufficient balance");
         _allowances[from][msg.sender] -= amount;
+
         hodlMulti.safeTransferFrom(from, to, strike, amount, "");
 
         return true;

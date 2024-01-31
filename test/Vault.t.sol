@@ -8,7 +8,16 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStEth } from "../src/interfaces/IStEth.sol";
 
 import { Vault } from  "../src/Vault.sol";
+import { Router } from  "../src/Router.sol";
 import { HodlToken } from  "../src/single/HodlToken.sol";
+import { UniswapV3LiquidityPool } from "../src/liquidity/UniswapV3LiquidityPool.sol";
+import { ILiquidityPool } from "../src/interfaces/ILiquidityPool.sol";
+
+// Uniswap interfaces
+import { IUniswapV3Pool } from "../src/interfaces/uniswap/IUniswapV3Pool.sol";
+import { IUniswapV3Factory } from "../src/interfaces/uniswap/IUniswapV3Factory.sol";
+import { IWrappedETH } from "../src/interfaces/IWrappedETH.sol";
+import { INonfungiblePositionManager } from "../src/interfaces/uniswap/INonfungiblePositionManager.sol";
 
 import { BaseTest } from  "./BaseTest.sol";
 import { FakeOracle } from  "./helpers/FakeOracle.sol";
@@ -16,10 +25,21 @@ import { FakeOracle } from  "./helpers/FakeOracle.sol";
 contract VaultTest is BaseTest {
     Vault public vault;
 
-    address stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84; // mainnet
+    address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address public mainnet_NonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    address public mainnet_SwapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public mainnet_QuoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
+    address public mainnet_weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    UniswapV3LiquidityPool public pool;
+    IUniswapV3Pool public uniswapV3Pool;
+    INonfungiblePositionManager public manager;
 
     function setUp() public {
         init();
+
+        // pool = new UniswapV3LiquidityPool(address(uniswapV3Pool), arbitrumSwapRouter, arbitrumQuoterV2);
     }
 
     function testVault() public {
@@ -308,6 +328,74 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(bob, strike1), hodl1.balanceOf(bob));
         assertEq(vault.hodlMulti().balanceOf(chad, strike1), hodl1.balanceOf(chad));
         assertEq(vault.hodlMulti().balanceOf(degen, strike1), hodl1.balanceOf(degen));
+    }
+
+    function testSwap() public {
+        testVault();
+
+        uint256 strike1 = 2000_00000000;
+
+        address hodl1Address = vault.deployERC20(strike1);
+
+        IERC20 hodl1 = IERC20(hodl1Address);
+        IERC20 weth = IERC20(mainnet_weth);
+
+        // Set up the pool
+        (address token0, address token1) = address(hodl1) < address(weth)
+            ? (address(hodl1), address(weth))
+            : (address(weth), address(hodl1));
+        uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).getPool(token0, token1, 3000));
+
+        if (address(uniswapV3Pool) == address(0)) {
+            uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).createPool(token0, token1, 3000));
+            IUniswapV3Pool(uniswapV3Pool).initialize(79228162514264337593543950336);
+        }
+        pool = new UniswapV3LiquidityPool(address(uniswapV3Pool),
+                                          mainnet_SwapRouter,
+                                          mainnet_QuoterV2);
+
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        IWrappedETH(address(weth)).deposit{value: 10 ether}();
+        vm.stopPrank();
+
+        uint256 token0Amount = 0.5 ether;
+        uint256 token1Amount = 0.5 ether;
+
+        // Add initial liquidity
+        manager = INonfungiblePositionManager(mainnet_NonfungiblePositionManager);
+        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+            token0: token0,
+            token1: token1,
+            fee: 3000,
+            tickLower: -1800,
+            tickUpper: 2220,
+            amount0Desired: token0Amount,
+            amount1Desired: token1Amount,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: alice,
+            deadline: block.timestamp + 1 });
+
+        vm.startPrank(alice);
+
+        IERC20(params.token0).approve(address(manager), token0Amount);
+        IERC20(params.token1).approve(address(manager), token1Amount);
+        manager.mint(params);
+        vm.stopPrank();
+
+        Router router = new Router(address(vault),
+                                   address(weth),
+                                   mainnet_UniswapV3Factory,
+                                   mainnet_SwapRouter,
+                                   mainnet_QuoterV2);
+
+        uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
+        uint256 out = router.hodl{value: 0.2 ether}(strike1, 0);
+
+        assertEq(out, 191381783398625730);
+        assertEq(previewOut, 191381783398625730);
     }
 
     function simulateYield(uint256 amount) internal {

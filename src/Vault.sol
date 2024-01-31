@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "forge-std/console.sol"; 
+import "forge-std/console.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -150,9 +150,7 @@ contract Vault {
         return block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike;
     }
 
-    function redeem(uint256 strike,
-                    uint256 amount,
-                    uint256 stakeId) external {
+    function redeem(uint256 strike, uint256 amount, uint256 stakeId) external {
 
         if (stakeId == 0) {
             // Redeem via tokens
