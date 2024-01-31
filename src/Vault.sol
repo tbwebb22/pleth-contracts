@@ -251,7 +251,7 @@ contract Vault {
         stEth.transfer(msg.sender, amount);
     }
 
-    function hodlStake(uint256 strike, uint256 amount) public returns (uint256) {
+    function hodlStake(uint256 strike, uint256 amount, address user) public returns (uint256) {
         require(hodlMulti.balanceOf(msg.sender, strike) >= amount, "hodl stake balance");
 
         hodlMulti.burn(msg.sender, strike, amount);
@@ -259,7 +259,7 @@ contract Vault {
 
         uint256 id = nextId++;
         hodlStakes[id] = HodlStake({
-            user: msg.sender,
+            user: user,
             timestamp: block.timestamp,
             strike: strike,
             amount: amount });

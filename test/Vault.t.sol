@@ -93,15 +93,15 @@ contract VaultTest is BaseTest {
 
         // stake hodl tokens, receive y tokens
         vm.startPrank(alice);
-        uint256 stake1 = vault.hodlStake(strike1, 2 ether);
+        uint256 stake1 = vault.hodlStake(strike1, 2 ether, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint256 stake2 = vault.hodlStake(strike2, 4 ether);
+        uint256 stake2 = vault.hodlStake(strike2, 4 ether, bob);
         vm.stopPrank();
 
         vm.startPrank(chad);
-        uint256 stake3 = vault.hodlStake(strike3, 8 ether - 1);
+        uint256 stake3 = vault.hodlStake(strike3, 8 ether - 1, chad);
         vm.stopPrank();
 
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 1);
@@ -236,7 +236,7 @@ contract VaultTest is BaseTest {
         // transfer y tokens, verify address level accounting
         vm.startPrank(chad);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
-        uint256 stake7 = vault.hodlStake(strike3, 8 ether);
+        uint256 stake7 = vault.hodlStake(strike3, 8 ether, chad);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether);
         vault.yMulti().safeTransferFrom(chad, degen, strike3, 4 ether, "");
         vm.stopPrank();
@@ -373,7 +373,6 @@ contract VaultTest is BaseTest {
             deadline: block.timestamp + 1 });
 
         vm.startPrank(alice);
-
         IERC20(params.token0).approve(address(manager), token0Amount);
         IERC20(params.token1).approve(address(manager), token1Amount);
         manager.mint(params);
@@ -386,10 +385,29 @@ contract VaultTest is BaseTest {
                                    mainnet_QuoterV2);
 
         uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
-        uint256 out = router.hodl{value: 0.2 ether}(strike1, 0);
+
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        (uint256 out, uint256 stakeId) = router.hodl{value: 0.2 ether}(strike1, 0);
+        vm.stopPrank();
 
         assertEq(out, 191381783398625730);
         assertEq(previewOut, 191381783398625730);
+
+        console.log("stakeId", stakeId);
+        console.log("can redeem?", vault.canRedeem(stakeId));
+
+        vm.expectRevert("redeem user");
+        vault.redeem(strike1, out, stakeId);
+
+        uint256 before = IERC20(stEth).balanceOf(alice);
+
+        vm.startPrank(alice);
+        vault.redeem(strike1, out, stakeId);
+        vm.stopPrank();
+
+        uint256 delta = IERC20(stEth).balanceOf(alice) - before;
+        assertEq(delta, out);
     }
 
     function simulateYield(uint256 amount) internal {

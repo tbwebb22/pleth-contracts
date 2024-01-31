@@ -70,7 +70,7 @@ contract Router {
         return amountOut;
     }
 
-    function hodl(uint256 strike, uint256 minOut) public payable returns (uint256) {
+    function hodl(uint256 strike, uint256 minOut) public payable returns (uint256, uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -86,7 +86,7 @@ contract Router {
                 tokenIn: address(weth),
                 tokenOut: address(token),
                 fee: FEE,
-                recipient: msg.sender,
+                recipient: address(this),
                 deadline: block.timestamp + 1,
                 amountIn: msg.value,
                 amountOutMinimum: minOut,
@@ -94,6 +94,16 @@ contract Router {
 
         uint256 out = swapRouter.exactInputSingle(params);
 
-        return out;
+        uint256 stakeId = vault.hodlStake(strike, out, msg.sender);
+
+        return (out, stakeId);
+    }
+
+    function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory) public virtual returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
     }
 }
