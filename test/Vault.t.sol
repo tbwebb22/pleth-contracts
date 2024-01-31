@@ -26,11 +26,12 @@ contract VaultTest is BaseTest {
     Vault public vault;
 
     address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    address public mainnet_NonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
-    address public mainnet_SwapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address public mainnet_QuoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
-    address public mainnet_weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    address public uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address public nonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    address public swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public quoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
 
     UniswapV3LiquidityPool public pool;
     IUniswapV3Pool public uniswapV3Pool;
@@ -328,23 +329,20 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(degen, strike1), hodl1.balanceOf(degen));
     }
 
-    function testSwap() public {
+    function testRouter() public {
         testVault();
 
         uint256 strike1 = 2000_00000000;
-        address hodl1Address = vault.deployERC20(strike1);
-
-        IERC20 hodl1 = IERC20(hodl1Address);
-        IERC20 weth = IERC20(mainnet_weth);
+        address hodl1 = vault.deployERC20(strike1);
 
         // Set up the pool
-        (address token0, address token1) = address(hodl1) < address(weth)
-            ? (address(hodl1), address(weth))
-            : (address(weth), address(hodl1));
-        uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).getPool(token0, token1, 3000));
+        (address token0, address token1) = hodl1 < weth
+            ? (hodl1, weth)
+            : (weth, hodl1);
+        uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(uniswapV3Factory).getPool(token0, token1, 3000));
 
         if (address(uniswapV3Pool) == address(0)) {
-            uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).createPool(token0, token1, 3000));
+            uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(uniswapV3Factory).createPool(token0, token1, 3000));
             IUniswapV3Pool(uniswapV3Pool).initialize(79228162514264337593543950336);
         }
 
@@ -358,7 +356,7 @@ contract VaultTest is BaseTest {
         uint256 token1Amount = 0.5 ether;
 
         // Add initial liquidity
-        manager = INonfungiblePositionManager(mainnet_NonfungiblePositionManager);
+        manager = INonfungiblePositionManager(nonfungiblePositionManager);
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: token0,
             token1: token1,
@@ -380,9 +378,9 @@ contract VaultTest is BaseTest {
 
         Router router = new Router(address(vault),
                                    address(weth),
-                                   mainnet_UniswapV3Factory,
-                                   mainnet_SwapRouter,
-                                   mainnet_QuoterV2);
+                                   uniswapV3Factory,
+                                   swapRouter,
+                                   quoterV2);
 
         uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
 
@@ -393,9 +391,6 @@ contract VaultTest is BaseTest {
 
         assertEq(out, 191381783398625730);
         assertEq(previewOut, 191381783398625730);
-
-        console.log("stakeId", stakeId);
-        console.log("can redeem?", vault.canRedeem(stakeId));
 
         vm.expectRevert("redeem user");
         vault.redeem(strike1, out, stakeId);

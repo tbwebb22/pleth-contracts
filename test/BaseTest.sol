@@ -41,8 +41,6 @@ contract BaseTest is Test {
     }
 
     function init(uint256 fork) public {
-        console.log("forking to", fork);
-
         if (fork == 0xdeadbeef) {
             fork = vm.createFork(vm.envString("MAINNET_RPC_URL"), 18260000);
         }
