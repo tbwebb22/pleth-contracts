@@ -229,15 +229,9 @@ contract Vault {
         uint256 ypt;
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
-            console.log("active");
-            uint256 a = yieldPerToken();
-            uint256 b = stk.yieldPerTokenClaimed;
-            console.log("a", a);
-            console.log("b", b);
             ypt = yieldPerToken() - stk.yieldPerTokenClaimed;
         } else {
             // passed epoch
-            console.log("passed");
             ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed;
         }
         return ypt;
@@ -280,10 +274,6 @@ contract Vault {
 
     function yieldPerToken() public view returns (uint256) {
         if (yStakedTotal == 0) return 0;
-        uint256 tcy = totalCumulativeYield();
-        console.log("YPT compute");
-        console.log("tcy", tcy);
-        console.log("cya", cumulativeYieldAcc);
         uint256 deltaCumulative = totalCumulativeYield() - cumulativeYieldAcc;
         uint256 incr = deltaCumulative * PRECISION_FACTOR / yStakedTotal;
         return yieldPerTokenAcc + incr;
