@@ -151,7 +151,6 @@ contract Vault {
     }
 
     function redeem(uint256 strike, uint256 amount, uint256 stakeId) external {
-
         if (stakeId == 0) {
             // Redeem via tokens
             require(hodlMulti.balanceOf(msg.sender, strike) >= amount);
@@ -225,19 +224,29 @@ contract Vault {
         return id;
     }
 
-    function claimable(uint256 stakeId) public view returns (uint256) {
+    function _stakeYpt(uint256 stakeId) internal view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt;
-
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
+            console.log("active");
+            uint256 a = yieldPerToken();
+            uint256 b = stk.yieldPerTokenClaimed;
+            console.log("a", a);
+            console.log("b", b);
             ypt = yieldPerToken() - stk.yieldPerTokenClaimed;
         } else {
             // passed epoch
+            console.log("passed");
             ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed;
         }
+        return ypt;
+    }
 
-        return ypt * stk.amount;
+    function claimable(uint256 stakeId) public view returns (uint256) {
+        YStake storage stk = yStakes[stakeId];
+        uint256 ypt = _stakeYpt(stakeId);
+        return ypt * stk.amount / PRECISION_FACTOR;
     }
 
 
@@ -246,9 +255,9 @@ contract Vault {
         require(stk.user == msg.sender, "y claim user");
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
-        // TODO: update claimed tracking to avoid double claims + write tests
-
+        stk.yieldPerTokenClaimed = _stakeYpt(stakeId);
         stEth.transfer(msg.sender, amount);
+        claimed += amount;
     }
 
     function hodlStake(uint256 strike, uint256 amount, address user) public returns (uint256) {
@@ -271,6 +280,10 @@ contract Vault {
 
     function yieldPerToken() public view returns (uint256) {
         if (yStakedTotal == 0) return 0;
+        uint256 tcy = totalCumulativeYield();
+        console.log("YPT compute");
+        console.log("tcy", tcy);
+        console.log("cya", cumulativeYieldAcc);
         uint256 deltaCumulative = totalCumulativeYield() - cumulativeYieldAcc;
         uint256 incr = deltaCumulative * PRECISION_FACTOR / yStakedTotal;
         return yieldPerTokenAcc + incr;

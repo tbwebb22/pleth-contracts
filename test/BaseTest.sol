@@ -47,4 +47,9 @@ contract BaseTest is Test {
 
         vm.selectFork(fork);
     }
+
+    function assertClose(uint256 x, uint256 target, uint256 tolerance) public {
+        if (x > target) assertTrue(x - target <= tolerance);
+        else assertTrue(target - x <= tolerance);
+    }
 }

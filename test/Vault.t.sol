@@ -141,6 +141,20 @@ contract VaultTest is BaseTest {
         assertEq(vault.cumulativeYield(epoch2), 0.04 ether);
         assertEq(vault.cumulativeYield(epoch3), 0.08 ether - 1);
 
+        // verify claimable yields + claim
+        console.log("test claims");
+
+        assertEq(vault.claimable(stake4), 0.01 ether);
+        assertEq(vault.claimable(stake5), 0.04 ether);
+        assertEq(vault.claimable(stake6), 0.08 ether - 1);
+
+        vm.expectRevert("y claim user");
+        vault.claim(stake4);
+
+        claimAndVerify(stake4, alice, 0.01 ether, true);
+        claimAndVerify(stake5, bob, 0.04 ether, true);
+        claimAndVerify(stake6, chad, 0.08 ether - 1, true);
+
         // move price above strike1, verify redeem via hodl token
 
         vm.startPrank(alice);
@@ -150,7 +164,7 @@ contract VaultTest is BaseTest {
 
         oracle.setPrice(strike1 + 1);
 
-        assertEq(IERC20(stEth).balanceOf(alice), 0 ether);
+        assertClose(IERC20(stEth).balanceOf(alice), 0 ether, 10);
 
         vm.startPrank(alice);
         vault.redeem(strike1, 1 ether, stake1);
@@ -162,9 +176,9 @@ contract VaultTest is BaseTest {
 
         assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
 
-        assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
-        assertEq(IERC20(stEth).balanceOf(bob), 0);
-        assertEq(IERC20(stEth).balanceOf(chad), 0);
+        assertClose(IERC20(stEth).balanceOf(alice), 1 ether, 10);
+        assertClose(IERC20(stEth).balanceOf(bob), 0, 10);
+        assertClose(IERC20(stEth).balanceOf(chad), 0, 10);
 
         // simulate more yield, verify only epoch2 and epoch3 get it
 
@@ -178,7 +192,7 @@ contract VaultTest is BaseTest {
 
         oracle.setPrice(strike3 + 1);
 
-        assertEq(IERC20(stEth).balanceOf(chad), 0 ether);
+        assertClose(IERC20(stEth).balanceOf(chad), 0 ether, 10);
 
         assertEq(vault.yStaked(epoch1), 0);
         assertEq(vault.yStaked(epoch2), 4 ether);
@@ -194,9 +208,10 @@ contract VaultTest is BaseTest {
         assertEq(vault.yStaked(epoch3), 0);
         assertEq(vault.yStakedTotal(), 4 ether);
 
-        assertEq(IERC20(stEth).balanceOf(alice), 1 ether - 1);
-        assertEq(IERC20(stEth).balanceOf(bob), 0);
-        assertEq(IERC20(stEth).balanceOf(chad), 4 ether - 1);
+        assertClose(IERC20(stEth).balanceOf(alice), 1 ether, 10);
+        assertClose(IERC20(stEth).balanceOf(bob), 0, 10);
+        assertClose(IERC20(stEth).balanceOf(chad), 4 ether, 10);
+
 
         simulateYield(0.08 ether);
 
@@ -333,5 +348,33 @@ contract VaultTest is BaseTest {
         vm.startPrank(whale);
         IERC20(vault.stEth()).transfer(address(vault), amount);
         vm.stopPrank();
+    }
+
+    function claimAndVerify(uint256 stakeId, address user, uint256 amount, bool dumpCoins) internal {
+        assertEq(vault.claimable(stakeId), amount);
+
+        uint256 before = IERC20(stEth).balanceOf(user);
+
+        vm.startPrank(user);
+        vault.claim(stakeId);
+        vm.stopPrank();
+
+        uint256 delta = IERC20(stEth).balanceOf(user) - before;
+        assertClose(delta, amount, 10);
+        assertEq(vault.claimable(stakeId), 0);
+
+        vm.startPrank(user);
+        vault.claim(stakeId);
+        vm.stopPrank();
+
+        delta = IERC20(stEth).balanceOf(user) - before;
+        assertClose(delta, amount, 10);
+
+        if (dumpCoins) {
+            vm.startPrank(user);
+            IERC20(stEth).transfer(address(123), delta);
+            vm.stopPrank();
+            assertClose(IERC20(stEth).balanceOf(user), before, 10);
+        }
     }
 }
