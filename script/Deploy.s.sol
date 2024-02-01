@@ -71,7 +71,7 @@ contract DeployScript is BaseScript {
             json = vm.serializeAddress(objName, "address_yMulti", address(vault.yMulti()));
             json = vm.serializeAddress(objName, "address_hodlMulti", address(vault.hodlMulti()));
 
-            json = vm.serializeString(objName, "contractName_oracle", "IOracle");
+            json = vm.serializeString(objName, "contractName_oracle", "FakeOracle");
             json = vm.serializeString(objName, "contractName_vault", "Vault");
             json = vm.serializeString(objName, "contractName_router", "Router");
             json = vm.serializeString(objName, "contractName_yMulti", "YMultiToken");
