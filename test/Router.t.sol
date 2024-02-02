@@ -104,7 +104,7 @@ contract RouterTest is BaseTest {
 
         vm.deal(alice, 1 ether);
         vm.startPrank(alice);
-        (uint256 out, uint256 stakeId) = router.hodl{value: 0.2 ether}(strike1, 0);
+        (uint256 out, uint32 stakeId) = router.hodl{value: 0.2 ether}(strike1, 0);
         vm.stopPrank();
 
         assertEq(out, 191381783398625730);

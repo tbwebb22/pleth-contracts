@@ -18,7 +18,7 @@ contract Vault {
 
     uint256 public constant PRECISION_FACTOR = 1 ether;
 
-    uint256 public nextId = 1;
+    uint32 public nextId = 1;
 
     IStEth public immutable stEth;
     IOracle public immutable oracle;
@@ -31,11 +31,11 @@ contract Vault {
     struct YStake {
         address user;
         uint256 strike;
-        uint256 epochId;
         uint256 amount;
         uint256 yieldPerTokenClaimed;
+        uint32 epochId;
     }
-    mapping (uint256 => YStake) public yStakes;
+    mapping (uint32 => YStake) public yStakes;
     mapping (uint256 => uint256) public yStaked;
     mapping (uint256 => uint256) public terminalYieldPerToken;
     uint256 public yStakedTotal;
@@ -43,10 +43,10 @@ contract Vault {
     struct HodlStake {
         address user;
         uint256 strike;
-        uint256 epochId;
         uint256 amount;
+        uint32 epochId;
     }
-    mapping (uint256 => HodlStake) public hodlStakes;
+    mapping (uint32 => HodlStake) public hodlStakes;
 
     uint256 public deposits;
     uint256 public claimed;
@@ -62,7 +62,7 @@ contract Vault {
     mapping (uint256 => EpochInfo) infos;
 
     // Map strike to active epoch ID
-    mapping (uint256 => uint256) public epochs;
+    mapping (uint256 => uint32) public epochs;
 
     event Triggered(uint256 indexed strike,
                     uint256 indexed epoch,
@@ -142,7 +142,7 @@ contract Vault {
         emit Mint(msg.sender, strike, delta);
     }
 
-    function canRedeem(uint256 stakeId) public view returns (bool) {
+    function canRedeem(uint32 stakeId) public view returns (bool) {
         HodlStake storage stk = hodlStakes[stakeId];
 
         // Check if price is currently above strike
@@ -158,7 +158,7 @@ contract Vault {
         return false;
     }
 
-    function redeem(uint256 strike, uint256 amount, uint256 stakeId) external {
+    function redeem(uint256 strike, uint256 amount, uint32 stakeId) external {
         if (stakeId == 0) {
             // Redeem via tokens
             require(hodlMulti.balanceOf(msg.sender, strike) >= amount);
@@ -205,15 +205,15 @@ contract Vault {
         deposits -= amount;
     }
 
-    function yStake(uint256 strike, uint256 amount) public returns (uint256) {
+    function yStake(uint256 strike, uint256 amount) public returns (uint32) {
 
         require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
-        uint256 epochId = epochs[strike];
+        uint32 epochId = epochs[strike];
 
         _checkpoint(epochId);
 
         yMulti.burn(msg.sender, strike, amount);
-        uint256 id = nextId++;
+        uint32 id = nextId++;
 
         uint256 ypt = yieldPerToken();
         yStakes[id] = YStake({
@@ -230,7 +230,7 @@ contract Vault {
         return id;
     }
 
-    function _stakeYpt(uint256 stakeId) internal view returns (uint256) {
+    function _stakeYpt(uint32 stakeId) internal view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt;
         if (epochs[stk.strike] == stk.epochId) {
@@ -243,14 +243,14 @@ contract Vault {
         return ypt;
     }
 
-    function claimable(uint256 stakeId) public view returns (uint256) {
+    function claimable(uint32 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt = _stakeYpt(stakeId);
         return ypt * stk.amount / PRECISION_FACTOR;
     }
 
 
-    function claim(uint256 stakeId) public {
+    function claim(uint32 stakeId) public {
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y claim user");
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
@@ -260,13 +260,13 @@ contract Vault {
         claimed += amount;
     }
 
-    function hodlStake(uint256 strike, uint256 amount, address user) public returns (uint256) {
+    function hodlStake(uint256 strike, uint256 amount, address user) public returns (uint32) {
         require(hodlMulti.balanceOf(msg.sender, strike) >= amount, "hodl stake balance");
 
         hodlMulti.burn(msg.sender, strike, amount);
         yMulti.mint(msg.sender, strike, amount);
 
-        uint256 id = nextId++;
+        uint32 id = nextId++;
         hodlStakes[id] = HodlStake({
             user: user,
             strike: strike,

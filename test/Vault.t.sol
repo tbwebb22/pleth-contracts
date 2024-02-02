@@ -95,15 +95,15 @@ contract VaultTest is BaseTest {
 
         // stake hodl tokens, receive y tokens
         vm.startPrank(alice);
-        uint256 stake1 = vault.hodlStake(strike1, 2 ether, alice);
+        uint32 stake1 = vault.hodlStake(strike1, 2 ether, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint256 stake2 = vault.hodlStake(strike2, 4 ether, bob);
+        uint32 stake2 = vault.hodlStake(strike2, 4 ether, bob);
         vm.stopPrank();
 
         vm.startPrank(chad);
-        uint256 stake3 = vault.hodlStake(strike3, 8 ether - 1, chad);
+        uint32 stake3 = vault.hodlStake(strike3, 8 ether - 1, chad);
         vm.stopPrank();
 
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 1);
@@ -117,15 +117,15 @@ contract VaultTest is BaseTest {
 
         // stake y token
         vm.startPrank(alice);
-        uint256 stake4 = vault.yStake(strike1, 1 ether);
+        uint32 stake4 = vault.yStake(strike1, 1 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint256 stake5 = vault.yStake(strike2, 4 ether);
+        uint32 stake5 = vault.yStake(strike2, 4 ether);
         vm.stopPrank();
 
         vm.startPrank(chad);
-        uint256 stake6 = vault.yStake(strike3, 8 ether - 1);
+        uint32 stake6 = vault.yStake(strike3, 8 ether - 1);
         vm.stopPrank();
 
         assertEq(vault.yMulti().balanceOf(alice, strike1), 1 ether);
@@ -253,7 +253,7 @@ contract VaultTest is BaseTest {
         // transfer y tokens, verify address level accounting
         vm.startPrank(chad);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
-        uint256 stake7 = vault.hodlStake(strike3, 8 ether, chad);
+        uint32 stake7 = vault.hodlStake(strike3, 8 ether, chad);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether);
         vault.yMulti().safeTransferFrom(chad, degen, strike3, 4 ether, "");
         vm.stopPrank();
@@ -262,7 +262,7 @@ contract VaultTest is BaseTest {
 
         // simulate yield after y token transfer, verify address level accounting
         vm.startPrank(degen);
-        uint256 stake8 = vault.yStake(strike3, 4 ether);
+        uint32 stake8 = vault.yStake(strike3, 4 ether);
         vm.stopPrank();
 
         assertEq(vault.yStakedTotal(), 8 ether);
@@ -350,7 +350,7 @@ contract VaultTest is BaseTest {
         vault.mint{value: 4 ether}(strike1);
 
         // stake 2 of 4 before strike hits
-        uint256 stake1 = vault.hodlStake(strike1, 2 ether, alice);
+        uint32 stake1 = vault.hodlStake(strike1, 2 ether, alice);
 
         // strike hits
         oracle.setPrice(strike1 + 1);
@@ -365,7 +365,7 @@ contract VaultTest is BaseTest {
         vault.redeem(strike1, 1 ether, stake1);
 
         // stake 1 at same strike
-        uint256 stake2 = vault.hodlStake(strike1, 1 ether, alice);
+        uint32 stake2 = vault.hodlStake(strike1, 1 ether, alice);
 
         // the newly staked tokens cannot be redeemed
         vm.expectRevert("cannot redeem");
@@ -378,7 +378,7 @@ contract VaultTest is BaseTest {
         vault.redeem(strike1, 1 ether, stake2);
 
         // stake and redeem last 1 at that strike
-        uint256 stake3 = vault.hodlStake(strike1, 1 ether - 10, alice);
+        uint32 stake3 = vault.hodlStake(strike1, 1 ether - 10, alice);
         vault.redeem(strike1, 1 ether - 10, stake3);
 
         vm.stopPrank();
@@ -389,7 +389,7 @@ contract VaultTest is BaseTest {
         IERC20(vault.stEth()).transfer(address(vault), amount);
     }
 
-    function claimAndVerify(uint256 stakeId, address user, uint256 amount, bool dumpCoins) internal {
+    function claimAndVerify(uint32 stakeId, address user, uint256 amount, bool dumpCoins) internal {
         assertEq(vault.claimable(stakeId), amount);
 
         uint256 before = IERC20(stEth).balanceOf(user);
