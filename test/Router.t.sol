@@ -37,13 +37,14 @@ contract RouterTest is BaseTest {
     IUniswapV3Pool public uniswapV3Pool;
     INonfungiblePositionManager public manager;
 
+    uint192 strike1 = 2000_00000000;
+
     function setUp() public {
         init();
     }
 
     function testRouter() public {
         // Set up: deploy vault, mint some hodl for alice, make it redeemable
-        uint256 strike1 = 2000_00000000;
         FakeOracle oracle = new FakeOracle();
         vault = new Vault(stEth, address(oracle));
         oracle.setPrice(strike1 - 1);

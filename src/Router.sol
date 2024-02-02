@@ -43,7 +43,7 @@ contract Router {
         quoterV2 = IQuoterV2(quoterV2_);
     }
 
-    function pool(uint256 strike) public view returns (address) {
+    function pool(uint192 strike) public view returns (address) {
         IERC20 hodlToken = IERC20(vault.deployments(strike));
         (address token0, address token1) = address(hodlToken) < address(weth)
             ? (address(hodlToken), address(weth))
@@ -52,7 +52,7 @@ contract Router {
         return uniswapV3Factory.getPool(token0, token1, FEE);
     }
 
-    function previewHodl(uint256 strike, uint256 amount) public returns (uint256) {
+    function previewHodl(uint192 strike, uint256 amount) public returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -70,7 +70,7 @@ contract Router {
         return amountOut;
     }
 
-    function hodl(uint256 strike, uint256 minOut) public payable returns (uint256, uint32) {
+    function hodl(uint192 strike, uint256 minOut) public payable returns (uint256, uint32) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);

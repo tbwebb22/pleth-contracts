@@ -23,7 +23,7 @@ contract DeployScript is BaseScript {
 
     Vault public vault;
 
-    uint256 strike1 = 2000_00000000;
+    uint192 strike1 = 2000_00000000;
 
     // Uniswap mainnet addresses
     address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;

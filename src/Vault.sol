@@ -30,10 +30,10 @@ contract Vault {
 
     struct YStake {
         address user;
-        uint256 strike;
+        uint192 strike;
+        uint32 epochId;
         uint256 amount;
         uint256 yieldPerTokenClaimed;
-        uint32 epochId;
     }
     mapping (uint32 => YStake) public yStakes;
     mapping (uint256 => uint256) public yStaked;
@@ -42,9 +42,9 @@ contract Vault {
 
     struct HodlStake {
         address user;
-        uint256 strike;
-        uint256 amount;
+        uint192 strike;
         uint32 epochId;
+        uint256 amount;
     }
     mapping (uint32 => HodlStake) public hodlStakes;
 
@@ -55,7 +55,7 @@ contract Vault {
     uint256 public yieldPerTokenAcc;
     uint256 public cumulativeYieldAcc;
     struct EpochInfo {
-        uint256 strike;
+        uint192 strike;
         uint256 yieldPerTokenAcc;
         uint256 cumulativeYieldAcc;
     }
@@ -64,8 +64,8 @@ contract Vault {
     // Map strike to active epoch ID
     mapping (uint256 => uint32) public epochs;
 
-    event Triggered(uint256 indexed strike,
-                    uint256 indexed epoch,
+    event Triggered(uint192 indexed strike,
+                    uint32 indexed epoch,
                     uint256 timestamp);
 
     event Mint(address indexed user,
@@ -73,17 +73,19 @@ contract Vault {
                uint256 amount);
 
     event HodlStaked(address indexed user,
-                     uint256 indexed strike,
-                     uint256 indexed stakeId,
+                     uint192 indexed strike,
+                     uint32 indexed stakeId,
                      uint256 amount);
 
     event YStaked(address indexed user,
-                  uint256 indexed strike,
-                  uint256 indexed stakeId,
+                  uint192 indexed strike,
+                  uint32 indexed stakeId,
                   uint256 amount);
 
-    constructor(address stEth_,
-                address oracle_) {
+    constructor(address stEth_, address oracle_) {
+        require(stEth_ != address(0));
+        require(oracle_ != address(0));
+
         stEth = IStEth(stEth_);
         oracle = IOracle(oracle_);
 
@@ -91,7 +93,7 @@ contract Vault {
         yMulti = new YMultiToken("", address(this));
     }
 
-    function deployERC20(uint256 strike) public returns (address) {
+    function deployERC20(uint192 strike) public returns (address) {
         if (deployments[strike] != address(0)) {
             return deployments[strike];
         }
@@ -119,7 +121,7 @@ contract Vault {
         cumulativeYieldAcc = total;
     }
 
-    function mint(uint256 strike) external payable {
+    function mint(uint192 strike) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
         uint256 before = stEth.balanceOf(address(this));
@@ -158,7 +160,7 @@ contract Vault {
         return false;
     }
 
-    function redeem(uint256 strike, uint256 amount, uint32 stakeId) external {
+    function redeem(uint192 strike, uint256 amount, uint32 stakeId) external {
         if (stakeId == 0) {
             // Redeem via tokens
             require(hodlMulti.balanceOf(msg.sender, strike) >= amount);
@@ -205,7 +207,7 @@ contract Vault {
         deposits -= amount;
     }
 
-    function yStake(uint256 strike, uint256 amount) public returns (uint32) {
+    function yStake(uint192 strike, uint256 amount) public returns (uint32) {
 
         require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
         uint32 epochId = epochs[strike];
@@ -260,7 +262,7 @@ contract Vault {
         claimed += amount;
     }
 
-    function hodlStake(uint256 strike, uint256 amount, address user) public returns (uint32) {
+    function hodlStake(uint192 strike, uint256 amount, address user) public returns (uint32) {
         require(hodlMulti.balanceOf(msg.sender, strike) >= amount, "hodl stake balance");
 
         hodlMulti.burn(msg.sender, strike, amount);
@@ -289,7 +291,7 @@ contract Vault {
         require(epochId < nextId, "invalid epoch");
 
         uint256 ypt;
-        uint256 strike = infos[epochId].strike;
+        uint192 strike = infos[epochId].strike;
         if (epochs[strike] == epochId) {
             // active epoch
             ypt = yieldPerToken() - infos[epochId].yieldPerTokenAcc;
