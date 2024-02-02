@@ -30,7 +30,6 @@ contract Vault {
 
     struct YStake {
         address user;
-        uint256 timestamp;
         uint256 strike;
         uint256 epochId;
         uint256 amount;
@@ -43,7 +42,6 @@ contract Vault {
 
     struct HodlStake {
         address user;
-        uint256 timestamp;
         uint256 strike;
         uint256 epochId;
         uint256 amount;
@@ -148,7 +146,7 @@ contract Vault {
         HodlStake storage stk = hodlStakes[stakeId];
 
         // Check if price is currently above strike
-        if (block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike) {
+        if (oracle.price(0) >= stk.strike) {
             return true;
         }
 
@@ -220,7 +218,6 @@ contract Vault {
         uint256 ypt = yieldPerToken();
         yStakes[id] = YStake({
             user: msg.sender,
-            timestamp: block.timestamp,
             strike: strike,
             epochId: epochId,
             amount: amount,
@@ -272,7 +269,6 @@ contract Vault {
         uint256 id = nextId++;
         hodlStakes[id] = HodlStake({
             user: user,
-            timestamp: block.timestamp,
             strike: strike,
             epochId: epochs[strike],
             amount: amount });
