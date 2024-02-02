@@ -45,6 +45,7 @@ contract Vault {
         address user;
         uint256 timestamp;
         uint256 strike;
+        uint256 epochId;
         uint256 amount;
     }
     mapping (uint256 => HodlStake) public hodlStakes;
@@ -143,9 +144,20 @@ contract Vault {
         emit Mint(msg.sender, strike, delta);
     }
 
-    function canRedeem(uint256 stakeId) external view returns (bool) {
+    function canRedeem(uint256 stakeId) public view returns (bool) {
         HodlStake storage stk = hodlStakes[stakeId];
-        return block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike;
+
+        // Check if price is currently above strike
+        if (block.timestamp >= stk.timestamp && oracle.price(0) >= stk.strike) {
+            return true;
+        }
+
+        // Check if this is a passed epoch
+        if (stk.epochId != epochs[stk.strike]) {
+            return true;
+        }
+
+        return false;
     }
 
     function redeem(uint256 strike, uint256 amount, uint256 stakeId) external {
@@ -163,8 +175,7 @@ contract Vault {
             require(stk.user == msg.sender, "redeem user");
             require(stk.amount >= amount, "redeem amount");
             require(stk.strike == strike, "redeem strike");
-            require(block.timestamp >= stk.timestamp, "redeem timestamp");
-            require(oracle.price(0) >= stk.strike, "redeem price");
+            require(canRedeem(stakeId), "cannot redeem");
 
             // burn the specified hodl stake
             stk.amount -= amount;
@@ -263,6 +274,7 @@ contract Vault {
             user: user,
             timestamp: block.timestamp,
             strike: strike,
+            epochId: epochs[strike],
             amount: amount });
 
         emit HodlStaked(msg.sender, strike, id, amount);

@@ -23,37 +23,38 @@ import { BaseTest } from  "./BaseTest.sol";
 import { FakeOracle } from  "./helpers/FakeOracle.sol";
 
 contract VaultTest is BaseTest {
-    Vault public vault;
+    Vault vault;
 
-    address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    address public uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    address public nonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
-    address public swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address public quoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
+    address uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address nonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address quoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
 
-    UniswapV3LiquidityPool public pool;
-    IUniswapV3Pool public uniswapV3Pool;
-    INonfungiblePositionManager public manager;
+    UniswapV3LiquidityPool pool;
+    IUniswapV3Pool uniswapV3Pool;
+    INonfungiblePositionManager manager;
+
+    FakeOracle oracle;
+
+    uint256 strike1 = 2000_00000000;
+    uint256 strike2 = 3000_00000000;
+    uint256 strike3 = 4000_00000000;
 
     function setUp() public {
         init();
     }
 
-    function testVault() public {
-        FakeOracle oracle = new FakeOracle();
+    function initVault() public {
+        oracle = new FakeOracle();
         oracle.setPrice(1999_00000000);
         vault = new Vault(stEth, address(oracle));
+    }
 
-        // Give the whale some stETH
-        vm.startPrank(whale);
-        IStEth(vault.stEth()).submit{value: 1 ether}(address(0));
-        vm.stopPrank();
-
-        uint256 strike1 = 2000_00000000;
-        uint256 strike2 = 3000_00000000;
-        uint256 strike3 = 4000_00000000;
+    function testVault() public {
+        initVault();
 
         // mint hodl tokens
         vm.startPrank(alice);
@@ -158,7 +159,7 @@ contract VaultTest is BaseTest {
         // move price above strike1, verify redeem via hodl token
 
         vm.startPrank(alice);
-        vm.expectRevert("redeem price");
+        vm.expectRevert("cannot redeem");
         vault.redeem(strike1, 1 ether, stake1);
         vm.stopPrank();
 
@@ -285,10 +286,6 @@ contract VaultTest is BaseTest {
     function testERC20() public {
         testVault();
 
-        uint256 strike1 = 2000_00000000;
-        uint256 strike2 = 3000_00000000;
-        uint256 strike3 = 4000_00000000;
-
         address hodl1Address = vault.deployERC20(strike1);
 
         // deploys should be saved
@@ -344,10 +341,52 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(degen, strike1), hodl1.balanceOf(degen));
     }
 
-    function simulateYield(uint256 amount) internal {
-        vm.startPrank(whale);
-        IERC20(vault.stEth()).transfer(address(vault), amount);
+    function testStrikeReuse() public {
+        initVault();
+
+        vm.startPrank(alice);
+
+        // mint hodl tokens
+        vault.mint{value: 4 ether}(strike1);
+
+        // stake 2 of 4 before strike hits
+        uint256 stake1 = vault.hodlStake(strike1, 2 ether, alice);
+
+        // strike hits
+        oracle.setPrice(strike1 + 1);
+
+        // redeem 1 of 2 staked
+        vault.redeem(strike1, 1 ether, stake1);
+
+        // go below strike
+        oracle.setPrice(strike1 - 1);
+
+        // redeem 1 remaining staked
+        vault.redeem(strike1, 1 ether, stake1);
+
+        // stake 1 at same strike
+        uint256 stake2 = vault.hodlStake(strike1, 1 ether, alice);
+
+        // the newly staked tokens cannot be redeemed
+        vm.expectRevert("cannot redeem");
+        vault.redeem(strike1, 1 ether, stake2);
+
+        // strike hits
+        oracle.setPrice(strike1 + 1);
+
+        // redeem the one we staked, now that they hit the strike
+        vault.redeem(strike1, 1 ether, stake2);
+
+        // stake and redeem last 1 at that strike
+        uint256 stake3 = vault.hodlStake(strike1, 1 ether - 10, alice);
+        vault.redeem(strike1, 1 ether - 10, stake3);
+
         vm.stopPrank();
+    }
+
+    function simulateYield(uint256 amount) internal {
+        IStEth(vault.stEth()).submit{value: amount}(address(0));
+        IERC20(vault.stEth()).transfer(address(vault), amount);
     }
 
     function claimAndVerify(uint256 stakeId, address user, uint256 amount, bool dumpCoins) internal {
