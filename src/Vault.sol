@@ -50,8 +50,6 @@ contract Vault {
     mapping (uint256 => HodlStake) public hodlStakes;
 
     uint256 public deposits;
-    bool public didTrigger = false;
-
     uint256 public claimed;
 
     // Track yield on per-epoch basis to support cumulativeYield(uint256)
