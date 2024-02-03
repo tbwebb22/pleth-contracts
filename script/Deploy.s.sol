@@ -42,10 +42,9 @@ contract DeployScript is BaseScript {
 
         vm.startBroadcast(pk);
 
-        console.log("deploy");
         FakeOracle oracle = new FakeOracle();
         oracle.setPrice(1999_00000000);
-        console.log("oracle deployed to", address(oracle));
+
         vault = new Vault(stEth, address(oracle));
 
         if (true) {
@@ -59,9 +58,6 @@ contract DeployScript is BaseScript {
                                    mainnet_UniswapV3Factory,
                                    mainnet_SwapRouter,
                                    mainnet_QuoterV2);
-
-        uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
-        console.log("preview out:", previewOut);
 
         vm.stopBroadcast();
 
