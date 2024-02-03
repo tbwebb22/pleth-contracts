@@ -99,6 +99,24 @@ contract Router {
         return (out, stakeId);
     }
 
+    function previewY(uint192 strike, uint256 amount) public returns (uint256) {
+        IERC20 token = IERC20(vault.deployments(strike));
+        require(address(token) != address(0), "no deployed ERC20");
+        address uniPool = pool(strike);
+        require(uniPool != address(0), "no uni pool");
+
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: address(token),
+            tokenOut: address(weth),
+            amountIn: amount,
+            fee: FEE,
+            sqrtPriceLimitX96: 0 });
+
+        (uint256 amountOut, , ,) = quoterV2.quoteExactInputSingle(params);
+
+        return amountOut - amount;
+    }
+
     function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
         return this.onERC1155Received.selector;
     }

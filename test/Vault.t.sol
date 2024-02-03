@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "forge-std/console.sol"; 
+import "forge-std/console.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -75,7 +75,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), 3 ether - 1);
         assertEq(vault.hodlMulti().balanceOf(bob, strike1), 0);
         assertEq(vault.hodlMulti().balanceOf(chad, strike1), 0);
-        assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 3 ether - 1);
         assertEq(vault.yMulti().balanceOf(bob, strike1), 0);
         assertEq(vault.yMulti().balanceOf(chad, strike1), 0);
 
@@ -83,7 +83,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(bob, strike2), 4 ether);
         assertEq(vault.hodlMulti().balanceOf(chad, strike2), 0);
         assertEq(vault.yMulti().balanceOf(alice, strike2), 0);
-        assertEq(vault.yMulti().balanceOf(bob, strike2), 0);
+        assertEq(vault.yMulti().balanceOf(bob, strike2), 4 ether);
         assertEq(vault.yMulti().balanceOf(chad, strike2), 0);
 
         assertEq(vault.hodlMulti().balanceOf(alice, strike3), 0);
@@ -91,7 +91,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.hodlMulti().balanceOf(chad, strike3), 8 ether - 1);
         assertEq(vault.yMulti().balanceOf(alice, strike3), 0);
         assertEq(vault.yMulti().balanceOf(bob, strike3), 0);
-        assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
+        assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether - 1);
 
         // stake hodl tokens, receive y tokens
         vm.startPrank(alice);
@@ -107,7 +107,7 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
 
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 1);
-        assertEq(vault.yMulti().balanceOf(alice, strike1), 2 ether);
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 3 ether - 1);
 
         assertEq(vault.hodlMulti().balanceOf(bob, strike2), 0);
         assertEq(vault.yMulti().balanceOf(bob, strike2), 4 ether);
@@ -128,7 +128,7 @@ contract VaultTest is BaseTest {
         uint32 stake6 = vault.yStake(strike3, 8 ether - 1);
         vm.stopPrank();
 
-        assertEq(vault.yMulti().balanceOf(alice, strike1), 1 ether);
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 2 ether - 1);
         assertEq(vault.yMulti().balanceOf(bob, strike2), 0);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
 
@@ -143,8 +143,6 @@ contract VaultTest is BaseTest {
         assertEq(vault.cumulativeYield(epoch3), 0.08 ether - 1);
 
         // verify claimable yields + claim
-        console.log("test claims");
-
         assertEq(vault.claimable(stake4), 0.01 ether);
         assertEq(vault.claimable(stake5), 0.04 ether);
         assertEq(vault.claimable(stake6), 0.08 ether - 1);
@@ -213,7 +211,6 @@ contract VaultTest is BaseTest {
         assertClose(IERC20(stEth).balanceOf(bob), 0, 10);
         assertClose(IERC20(stEth).balanceOf(chad), 4 ether, 10);
 
-
         simulateYield(0.08 ether);
 
         assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
@@ -251,11 +248,13 @@ contract VaultTest is BaseTest {
         assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield
 
         // transfer y tokens, verify address level accounting
+
         vm.startPrank(chad);
-        assertEq(vault.yMulti().balanceOf(chad, strike3), 0);
-        uint32 stake7 = vault.hodlStake(strike3, 8 ether, chad);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether);
+        uint32 stake7 = vault.hodlStake(strike3, 8 ether, chad);
         vault.yMulti().safeTransferFrom(chad, degen, strike3, 4 ether, "");
+        assertEq(vault.yMulti().balanceOf(chad, strike3), 4 ether);
+        assertEq(vault.yMulti().balanceOf(degen, strike3), 4 ether);
         vm.stopPrank();
 
         assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield

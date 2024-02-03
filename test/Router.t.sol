@@ -122,5 +122,9 @@ contract RouterTest is BaseTest {
 
         uint256 delta = IERC20(stEth).balanceOf(alice) - before;
         assertEq(delta, out - 1);
+
+        uint256 previewY = router.previewY(strike1, 0.2 ether);
+        console.log("previewY", previewY);
+        console.log("        ", 0.2 ether);
     }
 }

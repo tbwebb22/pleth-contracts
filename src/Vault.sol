@@ -138,8 +138,9 @@ contract Vault {
         // track per-epoch yield accumulation
         _checkpoint(epochs[strike]);
 
-        // mint hodl, y is minted on hodl stake
+        // mint hodl + y
         hodlMulti.mint(msg.sender, strike, delta);
+        yMulti.mint(msg.sender, strike, delta);
 
         emit Mint(msg.sender, strike, delta);
     }
@@ -266,7 +267,6 @@ contract Vault {
         require(hodlMulti.balanceOf(msg.sender, strike) >= amount, "hodl stake balance");
 
         hodlMulti.burn(msg.sender, strike, amount);
-        yMulti.mint(msg.sender, strike, amount);
 
         uint32 id = nextId++;
         hodlStakes[id] = HodlStake({
