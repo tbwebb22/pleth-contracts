@@ -381,6 +381,8 @@ contract VaultTest is BaseTest {
         uint32 stake3 = vault.hodlStake(strike1, 1 ether - 10, alice);
         vault.redeem(strike1, 1 ether - 10, stake3);
 
+        assertClose(IERC20(stEth).balanceOf(alice), 4 ether, 100);
+
         vm.stopPrank();
     }
 

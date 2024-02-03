@@ -23,7 +23,9 @@ contract DeployScript is BaseScript {
 
     Vault public vault;
 
-    uint192 strike1 = 2000_00000000;
+    uint192 strike1 = 3000_00000000;
+    uint192 strike2 = 5000_00000000;
+    uint192 strike3 = 10000_00000000;
 
     // Uniswap mainnet addresses
     address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -47,7 +49,9 @@ contract DeployScript is BaseScript {
         vault = new Vault(stEth, address(oracle));
 
         if (true) {
-            deployUniswap();
+            deployUniswap(strike1);
+            deployUniswap(strike2);
+            deployUniswap(strike3);
         }
 
         Router router = new Router(address(vault),
@@ -83,8 +87,8 @@ contract DeployScript is BaseScript {
         }
     }
 
-    function deployUniswap() public {
-        address hodl1 = vault.deployERC20(strike1);
+    function deployUniswap(uint192 strike) public {
+        address hodl1 = vault.deployERC20(strike);
 
         (address token0, address token1) = address(hodl1) < address(weth)
             ? (address(hodl1), address(weth))
@@ -109,7 +113,7 @@ contract DeployScript is BaseScript {
         console.log("amount:    ", amount);
 
         IWrappedETH(address(weth)).deposit{value: amount}();
-        vault.mint{value: amount + 100}(strike1);  // Add 100 for stETH off-by-one
+        vault.mint{value: amount + 100}(strike);  // Add 100 for stETH off-by-one
 
         console.log("token0 balance", IERC20(token0).balanceOf(deployerAddress));
         console.log("token1 balance", IERC20(token1).balanceOf(deployerAddress));
