@@ -90,12 +90,9 @@ contract DeployScript is BaseScript {
     function deployUniswap(uint192 strike) public {
         address hodl1 = vault.deployERC20(strike);
 
-        (address token0, address token1) = address(hodl1) < address(weth)
-            ? (address(hodl1), address(weth))
-            : (address(weth), address(hodl1));
-
-        console.log("weth ", weth);
-        console.log("hodl1", hodl1);
+        (address token0, address token1) = hodl1 < weth
+            ? (hodl1, weth)
+            : (weth, hodl1);
 
         uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).getPool(token0, token1, 3000));
 
@@ -104,20 +101,11 @@ contract DeployScript is BaseScript {
             IUniswapV3Pool(uniswapV3Pool).initialize(79228162514264337593543950336);
         }
 
-        console.log("deployed uniswapV3Pool", address(uniswapV3Pool));
-
         // Get some tokens
         uint256 amount = 1 ether;
 
-        console.log("my balance:", deployerAddress.balance);
-        console.log("amount:    ", amount);
-
         IWrappedETH(address(weth)).deposit{value: amount}();
         vault.mint{value: amount + 100}(strike);  // Add 100 for stETH off-by-one
-
-        console.log("token0 balance", IERC20(token0).balanceOf(deployerAddress));
-        console.log("token1 balance", IERC20(token1).balanceOf(deployerAddress));
-        console.log("amount:       ", amount);
 
         // Add initial liquidity
         manager = INonfungiblePositionManager(mainnet_NonfungiblePositionManager);
@@ -136,7 +124,5 @@ contract DeployScript is BaseScript {
         IERC20(params.token0).approve(address(manager), amount);
         IERC20(params.token1).approve(address(manager), amount);
         manager.mint(params);
-
-        
     }
 }
