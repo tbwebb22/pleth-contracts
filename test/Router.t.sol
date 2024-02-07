@@ -133,15 +133,6 @@ contract RouterTest is BaseTest {
         assertEq(delta, out - 1);
 
         uint256 previewY = router.previewY(strike1, 0.2 ether);
-        console.log("previewY", previewY);
-        console.log("        ", 0.2 ether);
         assertEq(previewY, 798812345308251676);
-
-
-        /* console.log(""); */
-        /* console.log(""); */
-        /* console.log(""); */
-        /* console.log("----"); */
-        /* router.y{value: 0.2 ether}(strike1, 1 ether); */
     }
 }

@@ -114,12 +114,8 @@ contract Router {
             return 0;
         }
 
-        console.log("");
-        console.log("--> search", n);
-
         IERC20 hodl = IERC20(vault.deployments(strike));
         address uniPool = pool(strike);
-
         uint256 loan = (hi + lo) / 2;
         uint256 fee = amount * 1_000 / 1_000_000;
 
@@ -132,22 +128,18 @@ contract Router {
 
         (uint256 out, , ,) = quoterV2.quoteExactInputSingle(params);
 
-        console.log("out:       ", out);
-        console.log("loan + fee:", loan + fee);
-
         if (out > loan + fee) {
+
+            // Output is enough to payoff loan + fee, can take larger loan
             uint256 diff = out - (loan + fee);
-            console.log("diff            ", diff);
-            console.log("SEARCH_TOLERANCE", SEARCH_TOLERANCE);
             if (diff < SEARCH_TOLERANCE) {
-                console.log("diff within tolerance", diff);
                 return loan;
-            } else {
-                console.log("can take larger loan", n, loan);
-                return _searchLoanSize(strike, amount, loan, hi, n -1);
             }
+
+            return _searchLoanSize(strike, amount, loan, hi, n -1);
         } else {
-            console.log("loan too large", n, loan);
+
+            // Output to small to payoff loan + fee, reduce loan size
             return _searchLoanSize(strike, amount, lo, loan, n - 1);
         }
     }
@@ -168,12 +160,6 @@ contract Router {
 
         // Amount of y tokens output
         uint256 out = amount + loan - fee;
-
-        console.log("in:");
-        console.log("- amount:", amount);
-        console.log("- loan:  ", loan);
-        console.log("- fee:   ", fee);
-        console.log("out:     ", out);
 
         return out;
     }
