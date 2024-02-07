@@ -57,7 +57,8 @@ contract DeployScript is BaseScript {
                                    address(weth),
                                    mainnet_UniswapV3Factory,
                                    mainnet_SwapRouter,
-                                   mainnet_QuoterV2);
+                                   mainnet_QuoterV2,
+                                   address(0));
 
         vm.stopBroadcast();
 

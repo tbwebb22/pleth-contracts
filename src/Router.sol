@@ -13,12 +13,14 @@ import { ISwapRouter } from "./interfaces/uniswap/ISwapRouter.sol";
 import { IQuoterV2 } from "./interfaces/uniswap/IQuoterV2.sol";
 import { IUniswapV3Factory } from "./interfaces/uniswap/IUniswapV3Factory.sol";
 import { IUniswapV3Pool } from "./interfaces/uniswap/IUniswapV3Pool.sol";
+import { IPool } from "../src/interfaces/aave/IPool.sol";
 
 
 contract Router {
     using SafeERC20 for IERC20;
 
     uint24 public constant FEE = 3000;
+    uint256 public constant SEARCH_TOLERANCE = 1e9;
 
     Vault public immutable vault;
     IWrappedETH public immutable weth;
@@ -28,19 +30,22 @@ contract Router {
     ISwapRouter public immutable swapRouter;
     IQuoterV2 public immutable quoterV2;
 
+    // Aave
+    IPool public immutable aavePool;
+
     constructor(address vault_,
                 address weth_,
                 address uniswapV3Factory_,
                 address swapRouter_,
-                address quoterV2_) {
-        require(vault_ != address(0));
-        require(weth_ != address(0));
+                address quoterV2_,
+                address aavePool_) {
 
         vault = Vault(vault_);
         weth = IWrappedETH(weth_);
         uniswapV3Factory = IUniswapV3Factory(uniswapV3Factory_);
         swapRouter = ISwapRouter(swapRouter_);
         quoterV2 = IQuoterV2(quoterV2_);
+        aavePool = IPool(aavePool_);
     }
 
     function pool(uint192 strike) public view returns (address) {
@@ -99,22 +104,112 @@ contract Router {
         return (out, stakeId);
     }
 
-    function previewY(uint192 strike, uint256 amount) public returns (uint256) {
-        IERC20 token = IERC20(vault.deployments(strike));
-        require(address(token) != address(0), "no deployed ERC20");
+    function _searchLoanSize(uint192 strike,
+                             uint256 amount,
+                             uint256 lo,
+                             uint256 hi,
+                             uint256 n) private returns (uint256) {
+
+        if (n == 0) {
+            return 0;
+        }
+
+        console.log("");
+        console.log("--> search", n);
+
+        IERC20 hodl = IERC20(vault.deployments(strike));
         address uniPool = pool(strike);
-        require(uniPool != address(0), "no uni pool");
+
+        uint256 loan = (hi + lo) / 2;
+        uint256 fee = amount * 1_000 / 1_000_000;
 
         IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
-            tokenIn: address(token),
+            tokenIn: address(hodl),
             tokenOut: address(weth),
-            amountIn: amount,
+            amountIn: amount + loan,
             fee: FEE,
             sqrtPriceLimitX96: 0 });
 
-        (uint256 amountOut, , ,) = quoterV2.quoteExactInputSingle(params);
+        (uint256 out, , ,) = quoterV2.quoteExactInputSingle(params);
 
-        return amountOut - amount;
+        console.log("out:       ", out);
+        console.log("loan + fee:", loan + fee);
+
+        if (out > loan + fee) {
+            uint256 diff = out - (loan + fee);
+            console.log("diff            ", diff);
+            console.log("SEARCH_TOLERANCE", SEARCH_TOLERANCE);
+            if (diff < SEARCH_TOLERANCE) {
+                console.log("diff within tolerance", diff);
+                return loan;
+            } else {
+                console.log("can take larger loan", n, loan);
+                return _searchLoanSize(strike, amount, loan, hi, n -1);
+            }
+        } else {
+            console.log("loan too large", n, loan);
+            return _searchLoanSize(strike, amount, lo, loan, n - 1);
+        }
+    }
+
+    function _flashLoanFee(uint256 amount) private view returns (uint256) {
+        uint256 percent = aavePool.FLASHLOAN_PREMIUM_TOTAL();
+        return amount * percent / 100;
+    }
+
+    function previewY(uint192 strike, uint256 amount) public returns (uint256) {
+        IERC20 hodl = IERC20(vault.deployments(strike));
+        require(address(hodl) != address(0), "no deployed ERC20");
+        address uniPool = pool(strike);
+        require(uniPool != address(0), "no uni pool");
+
+        uint256 loan = _searchLoanSize(strike, amount, 0, 1000 * amount, 64);
+        uint256 fee = _flashLoanFee(amount);
+
+        // Amount of y tokens output
+        uint256 out = amount + loan - fee;
+
+        console.log("in:");
+        console.log("- amount:", amount);
+        console.log("- loan:  ", loan);
+        console.log("- fee:   ", fee);
+        console.log("out:     ", out);
+
+        return out;
+    }
+
+    function y(uint192 strike, uint256 amount) public payable returns (uint256) {
+        console.log("y");
+        console.log("call flash loan", msg.value);
+        uint256 loan = amount - msg.value;
+        weth.deposit{value: msg.value}();
+        bytes memory data = abi.encode(strike, amount);
+        console.log("borrowing:", loan);
+        aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
+    }
+
+    function executeOperation(
+        address asset,
+        uint256 loan,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool) {
+        (uint192 strike, uint256 amount) = abi.decode(params, (uint192, uint256));
+        uint256 debt = loan + premium;
+
+        console.log("amount is:", amount);
+        console.log("debt is:  ", debt);
+
+        // mint hodl + y tokens
+
+        // keep the y tokens, sell hodl tokens to repay debt
+
+        // 
+
+        IERC20(address(weth)).approve(address(aavePool), debt);
+
+        return true;
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {

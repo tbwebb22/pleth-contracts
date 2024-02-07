@@ -19,19 +19,27 @@ import { IUniswapV3Factory } from "../src/interfaces/uniswap/IUniswapV3Factory.s
 import { IWrappedETH } from "../src/interfaces/IWrappedETH.sol";
 import { INonfungiblePositionManager } from "../src/interfaces/uniswap/INonfungiblePositionManager.sol";
 
+// Aave interfaces
+import { IPool } from "../src/interfaces/aave/IPool.sol";
+
 import { BaseTest } from  "./BaseTest.sol";
 import { FakeOracle } from  "./helpers/FakeOracle.sol";
 
 contract RouterTest is BaseTest {
     Vault public vault;
 
+    // Tokens
     address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    // Uniswap
     address public uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public nonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     address public swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address public quoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
+
+    // Aave
+    address public aavePool = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
 
     UniswapV3LiquidityPool public pool;
     IUniswapV3Pool public uniswapV3Pool;
@@ -99,7 +107,8 @@ contract RouterTest is BaseTest {
                                    address(weth),
                                    uniswapV3Factory,
                                    swapRouter,
-                                   quoterV2);
+                                   quoterV2,
+                                   aavePool);
 
         uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
 
@@ -126,5 +135,13 @@ contract RouterTest is BaseTest {
         uint256 previewY = router.previewY(strike1, 0.2 ether);
         console.log("previewY", previewY);
         console.log("        ", 0.2 ether);
+        assertEq(previewY, 798812345308251676);
+
+
+        /* console.log(""); */
+        /* console.log(""); */
+        /* console.log(""); */
+        /* console.log("----"); */
+        /* router.y{value: 0.2 ether}(strike1, 1 ether); */
     }
 }
