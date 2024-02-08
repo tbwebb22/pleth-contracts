@@ -208,7 +208,7 @@ contract Vault {
         deposits -= amount;
     }
 
-    function yStake(uint192 strike, uint256 amount) public returns (uint32) {
+    function yStake(uint192 strike, uint256 amount, address user) public returns (uint32) {
 
         require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
         uint32 epochId = epochs[strike];
@@ -220,7 +220,7 @@ contract Vault {
 
         uint256 ypt = yieldPerToken();
         yStakes[id] = YStake({
-            user: msg.sender,
+            user: user,
             strike: strike,
             epochId: epochId,
             amount: amount,
@@ -228,7 +228,7 @@ contract Vault {
         yStaked[epochId] += amount;
         yStakedTotal += amount;
 
-        emit YStaked(msg.sender, strike, id, amount);
+        emit YStaked(user, strike, id, amount);
 
         return id;
     }

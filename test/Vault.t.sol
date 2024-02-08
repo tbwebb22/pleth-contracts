@@ -117,15 +117,15 @@ contract VaultTest is BaseTest {
 
         // stake y token
         vm.startPrank(alice);
-        uint32 stake4 = vault.yStake(strike1, 1 ether);
+        uint32 stake4 = vault.yStake(strike1, 1 ether, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint32 stake5 = vault.yStake(strike2, 4 ether);
+        uint32 stake5 = vault.yStake(strike2, 4 ether, bob);
         vm.stopPrank();
 
         vm.startPrank(chad);
-        uint32 stake6 = vault.yStake(strike3, 8 ether - 1);
+        uint32 stake6 = vault.yStake(strike3, 8 ether - 1, chad);
         vm.stopPrank();
 
         assertEq(vault.yMulti().balanceOf(alice, strike1), 2 ether - 1);
@@ -261,7 +261,7 @@ contract VaultTest is BaseTest {
 
         // simulate yield after y token transfer, verify address level accounting
         vm.startPrank(degen);
-        uint32 stake8 = vault.yStake(strike3, 4 ether);
+        uint32 stake8 = vault.yStake(strike3, 4 ether, degen);
         vm.stopPrank();
 
         assertEq(vault.yStakedTotal(), 8 ether);
