@@ -168,11 +168,17 @@ contract Router {
         return (out, loan);
     }
 
-    function y(uint192 strike, uint256 loan) public payable {
+    function y(uint192 strike, uint256 loan) public payable returns (uint256, uint32) {
         console.log("msg.sender y", msg.sender);
         uint256 value = msg.value;
         bytes memory data = abi.encode(msg.sender, strike, value + loan);
         aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
+        console.log("flash loan done");
+
+        uint256 amount = vault.yMulti().balanceOf(address(this), strike);
+        uint32 stakeId = vault.yStake(strike, amount, msg.sender);
+
+        return (amount, stakeId);
     }
 
     function executeOperation(
