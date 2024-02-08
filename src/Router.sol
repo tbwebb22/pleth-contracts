@@ -48,6 +48,10 @@ contract Router {
         aavePool = IPool(aavePool_);
     }
 
+    function _min(uint256 x, uint256 y) internal pure returns (uint256) {
+        return x < y ? x : y;
+    }
+
     function pool(uint192 strike) public view returns (address) {
         IERC20 hodlToken = IERC20(vault.deployments(strike));
         (address token0, address token1) = address(hodlToken) < address(weth)
@@ -105,7 +109,7 @@ contract Router {
     }
 
     function _searchLoanSize(uint192 strike,
-                             uint256 amount,
+                             uint256 value,
                              uint256 lo,
                              uint256 hi,
                              uint256 n) private returns (uint256) {
@@ -117,83 +121,123 @@ contract Router {
         IERC20 hodl = IERC20(vault.deployments(strike));
         address uniPool = pool(strike);
         uint256 loan = (hi + lo) / 2;
-        uint256 fee = amount * 1_000 / 1_000_000;
+        uint256 fee = _flashLoanFee(loan);
+        uint256 debt = loan + fee;
 
         IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
             tokenIn: address(hodl),
             tokenOut: address(weth),
-            amountIn: amount + loan,
+            amountIn: value + loan,
             fee: FEE,
             sqrtPriceLimitX96: 0 });
 
         (uint256 out, , ,) = quoterV2.quoteExactInputSingle(params);
 
-        if (out > loan + fee) {
+        if (out > debt) {
 
             // Output is enough to payoff loan + fee, can take larger loan
-            uint256 diff = out - (loan + fee);
+            uint256 diff = out - debt;
             if (diff < SEARCH_TOLERANCE) {
                 return loan;
             }
 
-            return _searchLoanSize(strike, amount, loan, hi, n -1);
+            return _searchLoanSize(strike, value, loan, hi, n -1);
         } else {
 
             // Output to small to payoff loan + fee, reduce loan size
-            return _searchLoanSize(strike, amount, lo, loan, n - 1);
+            return _searchLoanSize(strike, value, lo, loan, n - 1);
         }
     }
 
-    function _flashLoanFee(uint256 amount) private view returns (uint256) {
+    function _flashLoanFee(uint256 loan) private view returns (uint256) {
         uint256 percent = aavePool.FLASHLOAN_PREMIUM_TOTAL();
-        return amount * percent / 100;
+        return loan * percent / 10_000;
     }
 
-    function previewY(uint192 strike, uint256 amount) public returns (uint256) {
+    function previewY(uint192 strike, uint256 value) public returns (uint256, uint256) {
         IERC20 hodl = IERC20(vault.deployments(strike));
         require(address(hodl) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
         require(uniPool != address(0), "no uni pool");
 
-        uint256 loan = _searchLoanSize(strike, amount, 0, 1000 * amount, 64);
-        uint256 fee = _flashLoanFee(amount);
+        uint256 loan = _searchLoanSize(strike, value, 0, 1000 * value, 64);
 
         // Amount of y tokens output
-        uint256 out = amount + loan - fee;
+        uint256 out = value + loan;
 
-        return out;
+        return (out, loan);
     }
 
-    function y(uint192 strike, uint256 amount) public payable returns (uint256) {
-        console.log("y");
-        console.log("call flash loan", msg.value);
-        uint256 loan = amount - msg.value;
-        weth.deposit{value: msg.value}();
-        bytes memory data = abi.encode(strike, amount);
-        console.log("borrowing:", loan);
+    function y(uint192 strike, uint256 loan) public payable {
+        console.log("msg.sender y", msg.sender);
+        uint256 value = msg.value;
+        bytes memory data = abi.encode(msg.sender, strike, value + loan);
         aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
     }
 
     function executeOperation(
-        address asset,
+        address,
         uint256 loan,
-        uint256 premium,
-        address initiator,
+        uint256 fee,
+        address,
         bytes calldata params
-    ) external returns (bool) {
-        (uint192 strike, uint256 amount) = abi.decode(params, (uint192, uint256));
-        uint256 debt = loan + premium;
+    ) external payable returns (bool) {
 
+        console.log("flash loan success, in exec op");
+
+        (address user, uint192 strike, uint256 amount) = abi.decode(params, (address, uint192, uint256));
+
+        IERC20 hodl = IERC20(vault.deployments(strike));
+        require(address(hodl) != address(0), "no deployed ERC20");
+
+        /* uint256 debt = loan + fee; */
         console.log("amount is:", amount);
-        console.log("debt is:  ", debt);
+        /* console.log("debt is:  ", debt); */
 
         // mint hodl + y tokens
+        console.log("withdrawing weth:", loan);
+        weth.withdraw(loan);
 
-        // keep the y tokens, sell hodl tokens to repay debt
+        require(address(this).balance == amount, "expected balance == amount");
+        console.log("my balance:", address(this).balance);
+        console.log("amount:    ", amount);
+        vault.mint{value: amount}(strike);
 
-        // 
+        // sell hodl tokens to repay debt
+        {
+            IERC20(address(hodl)).approve(address(address(swapRouter)), 0);
+            IERC20(address(hodl)).approve(address(address(swapRouter)), amount);
 
-        IERC20(address(weth)).approve(address(aavePool), debt);
+            ISwapRouter.ExactInputSingleParams memory params =
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: address(hodl),
+                    tokenOut: address(weth),
+                    fee: FEE,
+                    recipient: address(this),
+                    deadline: block.timestamp + 1,
+                    amountIn: amount,
+                    amountOutMinimum: loan + fee,
+                    sqrtPriceLimitX96: 0 });
+            uint256 out = swapRouter.exactInputSingle(params);
+            console.log("hodl sale got out:", out);
+            console.log("loan is:          ", loan);
+            console.log("debt is:          ", loan + fee);
+            console.log("fee is:           ", fee);
+
+            // approve repayment
+            IERC20(address(weth)).approve(address(aavePool), loan + fee);
+
+            // transfer y tokens to buyer
+            console.log("y multi balance", vault.yMulti().balanceOf(address(this), strike));
+            console.log("         amount", amount);
+            amount = _min(amount,
+                          vault.yMulti().balanceOf(address(this), strike));
+            vault.yMulti().safeTransferFrom(address(this),
+                                            user,
+                                            strike,
+                                            amount,
+                                            "");
+        }
 
         return true;
     }
@@ -205,4 +249,8 @@ contract Router {
     function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory) public virtual returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
     }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }

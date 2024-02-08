@@ -132,7 +132,21 @@ contract RouterTest is BaseTest {
         uint256 delta = IERC20(stEth).balanceOf(alice) - before;
         assertEq(delta, out - 1);
 
-        uint256 previewY = router.previewY(strike1, 0.2 ether);
-        assertEq(previewY, 798812345308251676);
+
+        (uint256 amountY, uint256 loan) = router.previewY(strike1, 0.2 ether);
+        assertEq(amountY, 808707991341361773);
+        assertEq(loan, 608707991341361773);
+
+        oracle.setPrice(strike1 - 1);
+
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
+
+        vm.startPrank(alice);
+        router.y{value: 0.2 ether}(strike1, loan);
+        vm.stopPrank();
+
+        assertClose(vault.yMulti().balanceOf(alice, strike1),
+                    amountY,
+                    1);
     }
 }
