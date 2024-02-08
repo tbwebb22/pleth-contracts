@@ -169,11 +169,9 @@ contract Router {
     }
 
     function y(uint192 strike, uint256 loan) public payable returns (uint256, uint32) {
-        console.log("msg.sender y", msg.sender);
         uint256 value = msg.value;
         bytes memory data = abi.encode(msg.sender, strike, value + loan);
         aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
-        console.log("flash loan done");
 
         uint256 amount = vault.yMulti().balanceOf(address(this), strike);
         uint32 stakeId = vault.yStake(strike, amount, msg.sender);
@@ -189,61 +187,44 @@ contract Router {
         bytes calldata params
     ) external payable returns (bool) {
 
-        console.log("flash loan success, in exec op");
-
         (address user, uint192 strike, uint256 amount) = abi.decode(params, (address, uint192, uint256));
 
         IERC20 hodl = IERC20(vault.deployments(strike));
         require(address(hodl) != address(0), "no deployed ERC20");
 
-        /* uint256 debt = loan + fee; */
-        console.log("amount is:", amount);
-        /* console.log("debt is:  ", debt); */
-
         // mint hodl + y tokens
-        console.log("withdrawing weth:", loan);
         weth.withdraw(loan);
 
         require(address(this).balance == amount, "expected balance == amount");
-        console.log("my balance:", address(this).balance);
-        console.log("amount:    ", amount);
         vault.mint{value: amount}(strike);
 
         // sell hodl tokens to repay debt
-        {
-            IERC20(address(hodl)).approve(address(address(swapRouter)), 0);
-            IERC20(address(hodl)).approve(address(address(swapRouter)), amount);
+        IERC20(address(hodl)).approve(address(address(swapRouter)), 0);
+        IERC20(address(hodl)).approve(address(address(swapRouter)), amount);
 
-            ISwapRouter.ExactInputSingleParams memory params =
-                ISwapRouter.ExactInputSingleParams({
-                    tokenIn: address(hodl),
-                    tokenOut: address(weth),
-                    fee: FEE,
-                    recipient: address(this),
-                    deadline: block.timestamp + 1,
-                    amountIn: amount,
-                    amountOutMinimum: loan + fee,
-                    sqrtPriceLimitX96: 0 });
-            uint256 out = swapRouter.exactInputSingle(params);
-            console.log("hodl sale got out:", out);
-            console.log("loan is:          ", loan);
-            console.log("debt is:          ", loan + fee);
-            console.log("fee is:           ", fee);
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(hodl),
+                tokenOut: address(weth),
+                fee: FEE,
+                recipient: address(this),
+                deadline: block.timestamp + 1,
+                amountIn: amount,
+                amountOutMinimum: loan + fee,
+                sqrtPriceLimitX96: 0 });
+        uint256 out = swapRouter.exactInputSingle(params);
 
-            // approve repayment
-            IERC20(address(weth)).approve(address(aavePool), loan + fee);
+        // approve repayment
+        IERC20(address(weth)).approve(address(aavePool), loan + fee);
 
-            // transfer y tokens to buyer
-            console.log("y multi balance", vault.yMulti().balanceOf(address(this), strike));
-            console.log("         amount", amount);
-            amount = _min(amount,
-                          vault.yMulti().balanceOf(address(this), strike));
-            vault.yMulti().safeTransferFrom(address(this),
-                                            user,
-                                            strike,
-                                            amount,
-                                            "");
-        }
+        // transfer y tokens to buyer
+        amount = _min(amount,
+                      vault.yMulti().balanceOf(address(this), strike));
+        vault.yMulti().safeTransferFrom(address(this),
+                                        user,
+                                        strike,
+                                        amount,
+                                        "");
 
         return true;
     }
