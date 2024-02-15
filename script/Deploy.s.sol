@@ -48,9 +48,9 @@ contract DeployScript is BaseScript {
         vault = new Vault(stEth, address(oracle));
 
         if (true) {
-            deployUniswap(strike1);
-            deployUniswap(strike2);
-            deployUniswap(strike3);
+            deployUniswap(strike1, 73044756656988589698425290750, 85935007831751276823975034880);
+            deployUniswap(strike2, 68613601432514894825936388100, 91484801910019859767915184130);
+            deployUniswap(strike3, 63875786711408440335392571390, 98270441094474503294235443200);
         }
 
         Router router = new Router(address(vault),
@@ -84,22 +84,27 @@ contract DeployScript is BaseScript {
         }
     }
 
-    function deployUniswap(uint192 strike) public {
+    function deployUniswap(uint192 strike, uint160 initPrice, uint160 initPriceInv) public {
         address hodl1 = vault.deployERC20(strike);
 
         (address token0, address token1) = hodl1 < weth
             ? (hodl1, weth)
             : (weth, hodl1);
 
+        if (hodl1 > weth) {
+            initPrice = initPriceInv;
+        }
+
         uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).getPool(token0, token1, 3000));
 
         if (address(uniswapV3Pool) == address(0)) {
             uniswapV3Pool = IUniswapV3Pool(IUniswapV3Factory(mainnet_UniswapV3Factory).createPool(token0, token1, 3000));
-            IUniswapV3Pool(uniswapV3Pool).initialize(79228162514264337593543950336);
+
+            IUniswapV3Pool(uniswapV3Pool).initialize(initPrice);
         }
 
         // Get some tokens
-        uint256 amount = 1 ether;
+        uint256 amount = 100 ether;
 
         IWrappedETH(address(weth)).deposit{value: amount}();
         vault.mint{value: amount + 100}(strike);  // Add 100 for stETH off-by-one
@@ -110,8 +115,8 @@ contract DeployScript is BaseScript {
             token0: token0,
             token1: token1,
             fee: 3000,
-            tickLower: -1800,
-            tickUpper: 2220,
+            tickLower: -180000,
+            tickUpper: 222000,
             amount0Desired: amount,
             amount1Desired: amount,
             amount0Min: 0,

@@ -77,6 +77,11 @@ contract Vault {
                      uint32 indexed stakeId,
                      uint256 amount);
 
+    event HodlRedeemed(address indexed user,
+                       uint192 indexed strike,
+                       uint32 indexed stakeId,
+                       uint256 amount);
+
     event YStaked(address indexed user,
                   uint192 indexed strike,
                   uint32 indexed stakeId,
@@ -148,6 +153,11 @@ contract Vault {
     function canRedeem(uint32 stakeId) public view returns (bool) {
         HodlStake storage stk = hodlStakes[stakeId];
 
+        // Check if there is anything to redeem
+        if (stk.amount == 0) {
+            return false;
+        }
+
         // Check if price is currently above strike
         if (oracle.price(0) >= stk.strike) {
             return true;
@@ -206,6 +216,8 @@ contract Vault {
         stEth.transfer(msg.sender, amount);
 
         deposits -= amount;
+
+        emit HodlRedeemed(msg.sender, strike, stakeId, amount);
     }
 
     function yStake(uint192 strike, uint256 amount, address user) public returns (uint32) {
@@ -275,7 +287,7 @@ contract Vault {
             epochId: epochs[strike],
             amount: amount });
 
-        emit HodlStaked(msg.sender, strike, id, amount);
+        emit HodlStaked(user, strike, id, amount);
 
         return id;
     }
