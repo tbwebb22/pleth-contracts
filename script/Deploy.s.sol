@@ -23,9 +23,9 @@ contract DeployScript is BaseScript {
 
     Vault public vault;
 
-    uint192 strike1 = 3000_00000000;
-    uint192 strike2 = 5000_00000000;
-    uint192 strike3 = 10000_00000000;
+    uint192 strike1 = 5000_00000000;
+    uint192 strike2 = 10000_00000000;
+    uint192 strike3 = 15000_00000000;
 
     // Uniswap mainnet addresses
     address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -33,6 +33,8 @@ contract DeployScript is BaseScript {
     address public mainnet_SwapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address public mainnet_QuoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
     address public mainnet_weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    address public mainnet_aavePool = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
 
     IUniswapV3Pool public uniswapV3Pool;
     INonfungiblePositionManager public manager;
@@ -58,7 +60,7 @@ contract DeployScript is BaseScript {
                                    mainnet_UniswapV3Factory,
                                    mainnet_SwapRouter,
                                    mainnet_QuoterV2,
-                                   address(0));
+                                   mainnet_aavePool);
 
         vm.stopBroadcast();
 
