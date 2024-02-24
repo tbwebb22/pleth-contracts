@@ -208,8 +208,7 @@ contract Router {
         amount = _assertMaxDiffAndTakeSmaller(
             amount,
             IERC20(address(hodl)).balanceOf(address(this)),
-            1e6
-        );
+            1e6);
 
         // sell hodl tokens to repay debt
         IERC20(address(hodl)).approve(address(address(swapRouter)), 0);
