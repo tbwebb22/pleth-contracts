@@ -179,6 +179,12 @@ contract Router {
         return (amount, stakeId);
     }
 
+    function _assertMaxDiffAndTakeSmaller(uint256 x, uint256 y, uint256 maxDiff) internal pure returns (uint256) {
+        (uint256 hi, uint256 lo) = (x > y) ? (x, y) : (y, x);
+        assert(hi - lo < maxDiff);
+        return lo;
+    }
+
     function executeOperation(
         address,
         uint256 loan,
@@ -198,6 +204,13 @@ contract Router {
         require(address(this).balance == amount, "expected balance == amount");
         vault.mint{value: amount}(strike);
 
+        // handle steth off by 1 error
+        amount = _assertMaxDiffAndTakeSmaller(
+            amount,
+            IERC20(address(hodl)).balanceOf(address(this)),
+            1e6
+        );
+
         // sell hodl tokens to repay debt
         IERC20(address(hodl)).approve(address(address(swapRouter)), 0);
         IERC20(address(hodl)).approve(address(address(swapRouter)), amount);
@@ -212,19 +225,10 @@ contract Router {
                 amountIn: amount,
                 amountOutMinimum: loan + fee,
                 sqrtPriceLimitX96: 0 });
-        uint256 out = swapRouter.exactInputSingle(params);
+        swapRouter.exactInputSingle(params);
 
         // approve repayment
         IERC20(address(weth)).approve(address(aavePool), loan + fee);
-
-        // transfer y tokens to buyer
-        amount = _min(amount,
-                      vault.yMulti().balanceOf(address(this), strike));
-        vault.yMulti().safeTransferFrom(address(this),
-                                        user,
-                                        strike,
-                                        amount,
-                                        "");
 
         return true;
     }
