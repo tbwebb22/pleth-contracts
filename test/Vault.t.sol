@@ -150,11 +150,6 @@ contract VaultTest is BaseTest {
         vm.expectRevert("y claim user");
         vault.claim(stake4);
 
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
         claimAndVerify(stake4, alice, 0.01 ether, true);
         claimAndVerify(stake5, bob, 0.04 ether, true);
         claimAndVerify(stake6, chad, 0.08 ether - 1, true);
@@ -431,12 +426,6 @@ contract VaultTest is BaseTest {
         assertClose(vault.yMulti().balanceOf(alice, strike1), 2 ether, 100);
         assertClose(vault.yMulti().balanceOf(bob, strike1), 2 ether, 100);
 
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
-
         // alice stakes 2, bob stakes 1
         vm.startPrank(alice);
         uint32 stake2 = vault.yStake(strike1, 2 ether - 1, alice);
@@ -473,9 +462,6 @@ contract VaultTest is BaseTest {
         vault.claim(stakeId);
         vm.stopPrank();
 
-        console.log("balance", IERC20(stEth).balanceOf(user));
-        console.log("before ", before);
-
         delta = IERC20(stEth).balanceOf(user) - before;
         assertClose(delta, amount, 10);
 
@@ -485,7 +471,5 @@ contract VaultTest is BaseTest {
             vm.stopPrank();
             assertClose(IERC20(stEth).balanceOf(user), before, 10);
         }
-
-        console.log("verify done");
     }
 }
