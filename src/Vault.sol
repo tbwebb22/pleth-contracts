@@ -33,8 +33,8 @@ contract Vault {
         uint192 strike;
         uint32 epochId;
         uint256 amount;
-        uint256 yieldPerTokenClaimed;
         uint256 claimed;
+        uint256 acc;
     }
     mapping (uint32 => YStake) public yStakes;
     mapping (uint256 => uint256) public yStaked;
@@ -124,11 +124,17 @@ contract Vault {
     }
 
     function _checkpoint(uint256 epoch) internal {
+        console.log("checkpoint 1");
+
         uint256 ypt = yieldPerToken();
         uint256 total = totalCumulativeYield();
 
+        console.log("checkpoint 2");
+
         infos[epoch].cumulativeYieldAcc = cumulativeYield(epoch);
         infos[epoch].yieldPerTokenAcc = ypt;
+
+        console.log("checkpoint 3");
 
         yieldPerTokenAcc = ypt;
         cumulativeYieldAcc = total;
@@ -233,10 +239,16 @@ contract Vault {
         require(yMulti.balanceOf(msg.sender, strike) >= amount, "y stake balance");
         uint32 epochId = epochs[strike];
 
+        console.log("1");
+
         _checkpoint(epochId);
+
+        console.log("2");
 
         yMulti.burn(msg.sender, strike, amount);
         uint32 id = nextId++;
+
+        console.log("3");
 
         uint256 ypt = yieldPerToken();
         yStakes[id] = YStake({
@@ -244,8 +256,11 @@ contract Vault {
             strike: strike,
             epochId: epochId,
             amount: amount,
-            yieldPerTokenClaimed: ypt,
-            claimed: ypt * amount });
+            claimed: ypt * amount,
+            acc: 0});
+
+        console.log("4");
+
         yStaked[epochId] += amount;
         yStakedTotal += amount;
 
@@ -261,6 +276,7 @@ contract Vault {
         require(stk.amount >= amount, "y unstake amount");
 
         _checkpoint(stk.epochId);
+        stk.acc += claimable(stakeId);
 
         stk.amount -= amount;
         yStaked[stk.epochId] -= amount;
@@ -276,23 +292,19 @@ contract Vault {
         uint256 ypt;
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
-
-            /* ypt = yieldPerToken() - stk.yieldPerTokenClaimed; */
-            ypt = yieldPerToken();// - stk.yieldPerTokenClaimed;
-
+            return yieldPerToken();
         } else {
             // passed epoch
-
-            /* ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed; */
-            ypt = terminalYieldPerToken[stk.epochId];// - stk.yieldPerTokenClaimed;
+            return terminalYieldPerToken[stk.epochId];
         }
-        return ypt;
     }
 
     function claimable(uint32 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt = _stakeYpt(stakeId);
-        return ypt * stk.amount / PRECISION_FACTOR - stk.claimed;
+        return (stk.acc
+                + ypt * stk.amount / PRECISION_FACTOR
+                - stk.claimed);
     }
 
     function claim(uint32 stakeId) public {
@@ -300,7 +312,6 @@ contract Vault {
         require(stk.user == msg.sender, "y claim user");
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
-        stk.yieldPerTokenClaimed = _stakeYpt(stakeId);
         stk.claimed += amount;
 
         console.log("claim transfer");
@@ -329,8 +340,13 @@ contract Vault {
     }
 
     function yieldPerToken() public view returns (uint256) {
-        if (yStakedTotal == 0) return 0;
+        console.log("- ypt compute", yStakedTotal);
+        console.log("- ypt tot cum", totalCumulativeYield());
+        console.log("- ypt cum yac", cumulativeYieldAcc);
         uint256 deltaCumulative = totalCumulativeYield() - cumulativeYieldAcc;
+        console.log("- ypt delta  ", deltaCumulative);
+        
+        if (yStakedTotal == 0) return yieldPerTokenAcc;
         uint256 incr = deltaCumulative * PRECISION_FACTOR / yStakedTotal;
         return yieldPerTokenAcc + incr;
     }
@@ -342,11 +358,18 @@ contract Vault {
         uint192 strike = infos[epochId].strike;
         if (epochs[strike] == epochId) {
             // active epoch
+            console.log("cum yield active");
+            uint256 a = yieldPerToken();
+            console.log("yieldPerToken()", a);
+            console.log("minus acc      ", infos[epochId].yieldPerTokenAcc);
             ypt = yieldPerToken() - infos[epochId].yieldPerTokenAcc;
         } else {
             // passed epoch
+            console.log("cum yield passed");
             ypt = terminalYieldPerToken[epochId] - infos[epochId].yieldPerTokenAcc;
         }
+
+        console.log("cum yield return");
 
         return (infos[epochId].cumulativeYieldAcc +
                 yStaked[epochId] * ypt / PRECISION_FACTOR);

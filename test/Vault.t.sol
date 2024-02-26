@@ -422,6 +422,32 @@ contract VaultTest is BaseTest {
 
         assertEq(vault.totalCumulativeYield(), 0.2 ether - 1);
         assertEq(vault.claimable(stake1), 0.1 ether);
+
+        // lets do a bit more complicated: two stakes + only unstake part of it
+        vm.startPrank(alice);
+        vault.yMulti().safeTransferFrom(alice, bob, strike1, 2 ether, "");
+        vm.stopPrank();
+
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 2 ether, 100);
+        assertClose(vault.yMulti().balanceOf(bob, strike1), 2 ether, 100);
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+
+        // alice stakes 2, bob stakes 1
+        vm.startPrank(alice);
+        uint32 stake2 = vault.yStake(strike1, 2 ether - 1, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint32 stake3 = vault.yStake(strike1, 1 ether, bob);
+        vm.stopPrank();
+
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 0, 100);
+        assertClose(vault.yMulti().balanceOf(bob, strike1), 1 ether, 100);
     }
 
 

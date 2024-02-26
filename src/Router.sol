@@ -48,8 +48,8 @@ contract Router {
         aavePool = IPool(aavePool_);
     }
 
-    function _min(uint256 x, uint256 y) internal pure returns (uint256) {
-        return x < y ? x : y;
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 
     function pool(uint192 strike) public view returns (address) {
