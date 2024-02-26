@@ -150,6 +150,11 @@ contract VaultTest is BaseTest {
         vm.expectRevert("y claim user");
         vault.claim(stake4);
 
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
         claimAndVerify(stake4, alice, 0.01 ether, true);
         claimAndVerify(stake5, bob, 0.04 ether, true);
         claimAndVerify(stake6, chad, 0.08 ether - 1, true);
@@ -385,6 +390,41 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
     }
 
+
+    function testUnstakeY() public {
+        initVault();
+
+        vm.startPrank(alice);
+
+        // mint hodl tokens
+        vault.mint{value: 4 ether}(strike1);
+
+        // stake y token
+        vm.startPrank(alice);
+        uint32 stake1 = vault.yStake(strike1, 1 ether, alice);
+        vm.stopPrank();
+
+        // verify it gets yield
+        simulateYield(0.1 ether);
+
+        assertEq(vault.totalCumulativeYield(), 0.1 ether);
+        assertEq(vault.claimable(stake1), 0.1 ether);
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 3 ether, 100);
+
+        // unstake and verify no yield
+        vm.startPrank(alice);
+        vault.yUnstake(stake1, 1 ether, alice);
+        vm.stopPrank();
+
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 4 ether, 100);
+
+        simulateYield(0.1 ether);
+
+        assertEq(vault.totalCumulativeYield(), 0.2 ether - 1);
+        assertEq(vault.claimable(stake1), 0.1 ether);
+    }
+
+
     function simulateYield(uint256 amount) internal {
         IStEth(vault.stEth()).submit{value: amount}(address(0));
         IERC20(vault.stEth()).transfer(address(vault), amount);
@@ -407,6 +447,9 @@ contract VaultTest is BaseTest {
         vault.claim(stakeId);
         vm.stopPrank();
 
+        console.log("balance", IERC20(stEth).balanceOf(user));
+        console.log("before ", before);
+
         delta = IERC20(stEth).balanceOf(user) - before;
         assertClose(delta, amount, 10);
 
@@ -416,5 +459,7 @@ contract VaultTest is BaseTest {
             vm.stopPrank();
             assertClose(IERC20(stEth).balanceOf(user), before, 10);
         }
+
+        console.log("verify done");
     }
 }

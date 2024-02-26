@@ -34,6 +34,7 @@ contract Vault {
         uint32 epochId;
         uint256 amount;
         uint256 yieldPerTokenClaimed;
+        uint256 claimed;
     }
     mapping (uint32 => YStake) public yStakes;
     mapping (uint256 => uint256) public yStaked;
@@ -64,6 +65,8 @@ contract Vault {
     // Map strike to active epoch ID
     mapping (uint256 => uint32) public epochs;
 
+
+    // Events
     event Triggered(uint192 indexed strike,
                     uint32 indexed epoch,
                     uint256 timestamp);
@@ -86,6 +89,11 @@ contract Vault {
                   uint192 indexed strike,
                   uint32 indexed stakeId,
                   uint256 amount);
+
+    event YUnstaked(address indexed user,
+                    uint192 indexed strike,
+                    uint32 indexed stakeId,
+                    uint256 amount);
 
     constructor(address stEth_, address oracle_) {
         require(stEth_ != address(0));
@@ -236,7 +244,8 @@ contract Vault {
             strike: strike,
             epochId: epochId,
             amount: amount,
-            yieldPerTokenClaimed: ypt });
+            yieldPerTokenClaimed: ypt,
+            claimed: ypt * amount });
         yStaked[epochId] += amount;
         yStakedTotal += amount;
 
@@ -245,15 +254,37 @@ contract Vault {
         return id;
     }
 
+    function yUnstake(uint32 stakeId, uint256 amount, address user) public {
+
+        YStake storage stk = yStakes[stakeId];
+        require(stk.user == msg.sender, "y unstake user");
+        require(stk.amount >= amount, "y unstake amount");
+
+        _checkpoint(stk.epochId);
+
+        stk.amount -= amount;
+        yStaked[stk.epochId] -= amount;
+        yStakedTotal -= amount;
+
+        yMulti.mint(user, stk.strike, amount);
+
+        emit YUnstaked(user, stk.strike, stakeId, amount);
+    }
+
     function _stakeYpt(uint32 stakeId) internal view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt;
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
-            ypt = yieldPerToken() - stk.yieldPerTokenClaimed;
+
+            /* ypt = yieldPerToken() - stk.yieldPerTokenClaimed; */
+            ypt = yieldPerToken();// - stk.yieldPerTokenClaimed;
+
         } else {
             // passed epoch
-            ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed;
+
+            /* ypt = terminalYieldPerToken[stk.epochId] - stk.yieldPerTokenClaimed; */
+            ypt = terminalYieldPerToken[stk.epochId];// - stk.yieldPerTokenClaimed;
         }
         return ypt;
     }
@@ -261,9 +292,8 @@ contract Vault {
     function claimable(uint32 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt = _stakeYpt(stakeId);
-        return ypt * stk.amount / PRECISION_FACTOR;
+        return ypt * stk.amount / PRECISION_FACTOR - stk.claimed;
     }
-
 
     function claim(uint32 stakeId) public {
         YStake storage stk = yStakes[stakeId];
@@ -271,8 +301,14 @@ contract Vault {
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
         stk.yieldPerTokenClaimed = _stakeYpt(stakeId);
+        stk.claimed += amount;
+
+        console.log("claim transfer");
+
         stEth.transfer(msg.sender, amount);
         claimed += amount;
+
+        console.log("claim done");
     }
 
     function hodlStake(uint192 strike, uint256 amount, address user) public returns (uint32) {
