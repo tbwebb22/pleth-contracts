@@ -437,6 +437,16 @@ contract VaultTest is BaseTest {
 
         assertClose(vault.yMulti().balanceOf(alice, strike1), 0, 100);
         assertClose(vault.yMulti().balanceOf(bob, strike1), 1 ether, 100);
+
+        // check yield distributes and claims correctly
+
+        simulateYield(0.3 ether);
+
+        assertClose(vault.totalCumulativeYield(), 0.5 ether, 100);
+
+        assertClose(vault.claimable(stake1), 0.1 ether, 100);
+        assertClose(vault.claimable(stake2), 0.2 ether, 100);
+        assertClose(vault.claimable(stake3), 0.1 ether, 100);
     }
 
 

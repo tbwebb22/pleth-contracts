@@ -244,8 +244,8 @@ contract Vault {
             strike: strike,
             epochId: epochId,
             amount: amount,
-            claimed: ypt * amount,
-            acc: 0});
+            claimed: ypt * amount / PRECISION_FACTOR,
+            acc: 0 });
 
         yStaked[epochId] += amount;
         yStakedTotal += amount;
@@ -288,6 +288,11 @@ contract Vault {
     function claimable(uint32 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
         uint256 ypt = _stakeYpt(stakeId);
+
+        console.log("stk.acc", stk.acc);
+        console.log("incr   ", ypt * stk.amount / PRECISION_FACTOR);
+        console.log("claimed", stk.claimed);
+
         return (stk.acc
                 + ypt * stk.amount / PRECISION_FACTOR
                 - stk.claimed);
@@ -298,6 +303,7 @@ contract Vault {
         require(stk.user == msg.sender, "y claim user");
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
+        console.log("stk.claimed += amount", amount);
         stk.claimed += amount;
 
         stEth.transfer(msg.sender, amount);
