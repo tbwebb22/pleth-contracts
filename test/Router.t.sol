@@ -27,6 +27,8 @@ import { FakeOracle } from  "./helpers/FakeOracle.sol";
 
 contract RouterTest is BaseTest {
     Vault public vault;
+    Router public router;
+    FakeOracle public oracle;
 
     // Tokens
     address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -51,9 +53,9 @@ contract RouterTest is BaseTest {
         init();
     }
 
-    function testRouter() public {
+    function initRouter() public {
         // Set up: deploy vault, mint some hodl for alice, make it redeemable
-        FakeOracle oracle = new FakeOracle();
+        oracle = new FakeOracle();
         vault = new Vault(stEth, address(oracle));
         oracle.setPrice(strike1 - 1);
         address hodl1 = vault.deployERC20(strike1);
@@ -103,12 +105,16 @@ contract RouterTest is BaseTest {
         manager.mint(params);
         vm.stopPrank();
 
-        Router router = new Router(address(vault),
-                                   address(weth),
-                                   uniswapV3Factory,
-                                   swapRouter,
-                                   quoterV2,
-                                   aavePool);
+        router = new Router(address(vault),
+                            address(weth),
+                            uniswapV3Factory,
+                            swapRouter,
+                            quoterV2,
+                            aavePool);
+    }
+
+    function testBuys() public {
+        initRouter();
 
         uint256 previewOut = router.previewHodl(strike1, 0.2 ether);
 
@@ -132,7 +138,6 @@ contract RouterTest is BaseTest {
         uint256 delta = IERC20(stEth).balanceOf(alice) - before;
         assertEq(delta, out - 1);
 
-
         (uint256 amountY, uint256 loan) = router.previewY(strike1, 0.2 ether);
         assertEq(amountY, 808707991341361773);
         assertEq(loan, 608707991341361773);
@@ -142,11 +147,34 @@ contract RouterTest is BaseTest {
         assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
 
         vm.startPrank(alice);
-        router.y{value: 0.2 ether}(strike1, loan);
+        (uint256 outY, uint32 stake1) = router.y{value: 0.2 ether}(strike1, loan);
         vm.stopPrank();
 
-        assertClose(vault.yMulti().balanceOf(alice, strike1),
-                    amountY,
-                    1);
+        assertClose(outY, amountY, 1);
+        {
+            ( , , , uint256 stakeY, , ) = vault.yStakes(stake1);
+            assertClose(stakeY, amountY, 10);
+        }
+    }
+
+    function testSells() public {
+        initRouter();
+
+        uint256 previewOut = router.previewHodlSell(strike1, 0.2 ether);
+
+        IERC20 token = IERC20(vault.deployments(strike1));
+
+        uint256 before = IERC20(address(weth)).balanceOf(alice);
+
+        vm.startPrank(alice);
+        token.approve(address(router), 0.2 ether);
+        (uint256 out) = router.hodlSell(strike1, 0.2 ether, previewOut);
+        vm.stopPrank();
+
+        uint256 delta = IERC20(address(weth)).balanceOf(alice) - before;
+
+        assertEq(out, 191381783398625730);
+        assertEq(previewOut, 191381783398625730);
+        assertEq(delta, 191381783398625730);
     }
 }

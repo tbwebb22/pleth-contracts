@@ -61,6 +61,24 @@ contract Router {
         return uniswapV3Factory.getPool(token0, token1, FEE);
     }
 
+    function previewHodlSell(uint192 strike, uint256 amount) public returns (uint256) {
+        IERC20 token = IERC20(vault.deployments(strike));
+        require(address(token) != address(0), "no deployed ERC20");
+        address uniPool = pool(strike);
+        require(uniPool != address(0), "no uni pool");
+
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: address(token),
+            tokenOut: address(weth),
+            amountIn: amount,
+            fee: FEE,
+            sqrtPriceLimitX96: 0 });
+
+        (uint256 amountOut, , ,) = quoterV2.quoteExactInputSingle(params);
+
+        return amountOut;
+    }
+
     function previewHodl(uint192 strike, uint256 amount) public returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
@@ -77,6 +95,33 @@ contract Router {
         (uint256 amountOut, , ,) = quoterV2.quoteExactInputSingle(params);
 
         return amountOut;
+    }
+
+    function hodlSell(uint192 strike, uint256 amount, uint256 minOut) public payable returns (uint256) {
+        IERC20 token = IERC20(vault.deployments(strike));
+        require(address(token) != address(0), "no deployed ERC20");
+        address uniPool = pool(strike);
+        require(uniPool != address(0), "no uni pool");
+
+        token.transferFrom(msg.sender, address(this), amount);
+
+        token.approve(address(address(swapRouter)), 0);
+        token.approve(address(address(swapRouter)), amount);
+
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(token),
+                tokenOut: address(weth),
+                fee: FEE,
+                recipient: msg.sender,
+                deadline: block.timestamp + 1,
+                amountIn: amount,
+                amountOutMinimum: minOut,
+                sqrtPriceLimitX96: 0 });
+
+        uint256 out = swapRouter.exactInputSingle(params);
+
+        return out;
     }
 
     function hodl(uint192 strike, uint256 minOut) public payable returns (uint256, uint32) {
