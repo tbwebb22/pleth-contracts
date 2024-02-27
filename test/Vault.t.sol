@@ -408,7 +408,7 @@ contract VaultTest is BaseTest {
 
         // unstake and verify no yield
         vm.startPrank(alice);
-        vault.yUnstake(stake1, 1 ether, alice);
+        vault.yUnstake(stake1, alice);
         vm.stopPrank();
 
         assertClose(vault.yMulti().balanceOf(alice, strike1), 4 ether, 100);
@@ -439,7 +439,6 @@ contract VaultTest is BaseTest {
         assertClose(vault.yMulti().balanceOf(bob, strike1), 1 ether, 100);
 
         // check yield distributes and claims correctly
-
         simulateYield(0.3 ether);
 
         assertClose(vault.totalCumulativeYield(), 0.5 ether, 100);
@@ -447,6 +446,38 @@ contract VaultTest is BaseTest {
         assertClose(vault.claimable(stake1), 0.1 ether, 100);
         assertClose(vault.claimable(stake2), 0.2 ether, 100);
         assertClose(vault.claimable(stake3), 0.1 ether, 100);
+
+        // alice claims
+        claimAndVerify(stake1, alice, 0.1 ether, true);
+        claimAndVerify(stake2, alice, 0.2 ether, true);
+
+        assertClose(vault.claimable(stake1), 0, 0);
+        assertClose(vault.claimable(stake2), 0, 0);
+        assertClose(vault.claimable(stake3), 0.1 ether, 100);
+
+        // alice her tokens, check that it still works
+        vm.startPrank(alice);
+        vault.yUnstake(stake2, alice);
+        vm.stopPrank();
+
+        assertClose(vault.claimable(stake1), 0, 0);
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("check stake2");
+        assertClose(vault.claimable(stake2), 0, 0);
+        assertClose(vault.claimable(stake3), 0.1 ether, 100);
+
+        console.log("");
+        console.log("");
+        console.log("");
+
+        simulateYield(0.2 ether);
+
+        assertClose(vault.claimable(stake1), 0, 0);
+        assertClose(vault.claimable(stake2), 0, 100);
+        assertClose(vault.claimable(stake3), 0.3 ether, 100);
     }
 
 
@@ -456,6 +487,8 @@ contract VaultTest is BaseTest {
     }
 
     function claimAndVerify(uint32 stakeId, address user, uint256 amount, bool dumpCoins) internal {
+
+        console.log("cav check claimable");
         assertEq(vault.claimable(stakeId), amount);
 
         uint256 before = IERC20(stEth).balanceOf(user);
@@ -465,8 +498,18 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
 
         uint256 delta = IERC20(stEth).balanceOf(user) - before;
+        console.log("cav check delta");
         assertClose(delta, amount, 10);
+
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("");
+        console.log("cav claimable 0");
         assertEq(vault.claimable(stakeId), 0);
+        console.log("");
+        console.log("");
+        console.log("");
 
         vm.startPrank(user);
         vault.claim(stakeId);
@@ -474,6 +517,7 @@ contract VaultTest is BaseTest {
 
         delta = IERC20(stEth).balanceOf(user) - before;
         assertClose(delta, amount, 10);
+        console.log("cav check delta 2");
 
         if (dumpCoins) {
             vm.startPrank(user);

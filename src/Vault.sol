@@ -255,22 +255,22 @@ contract Vault {
         return id;
     }
 
-    function yUnstake(uint32 stakeId, uint256 amount, address user) public {
+    function yUnstake(uint32 stakeId, address user) public {
 
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y unstake user");
-        require(stk.amount >= amount, "y unstake amount");
+        require(stk.amount > 0, "y unstake zero");
 
         _checkpoint(stk.epochId);
-        stk.acc += claimable(stakeId);
+        stk.acc = stk.claimed + claimable(stakeId);
 
-        stk.amount -= amount;
-        yStaked[stk.epochId] -= amount;
-        yStakedTotal -= amount;
+        yStaked[stk.epochId] -= stk.amount;
+        yStakedTotal -= stk.amount;
+        yMulti.mint(user, stk.strike, stk.amount);
 
-        yMulti.mint(user, stk.strike, amount);
+        stk.amount = 0;
 
-        emit YUnstaked(user, stk.strike, stakeId, amount);
+        emit YUnstaked(user, stk.strike, stakeId, stk.amount);
     }
 
     function _stakeYpt(uint32 stakeId) internal view returns (uint256) {
@@ -287,15 +287,21 @@ contract Vault {
 
     function claimable(uint32 stakeId) public view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
-        uint256 ypt = _stakeYpt(stakeId);
 
-        console.log("stk.acc", stk.acc);
-        console.log("incr   ", ypt * stk.amount / PRECISION_FACTOR);
-        console.log("claimed", stk.claimed);
+        uint256 c;
+        if (stk.amount == 0) {
+            console.log("unstaked, using acc", stk.acc, stk.claimed);
+            // unstaked, use saved value
+            c = stk.acc;
+        } else {
+            // staked, use live value
+            assert(stk.acc == 0);  // only set when unstaking
+            uint256 ypt = _stakeYpt(stakeId);
+            console.log("staked, using ypt", ypt);
+            c = ypt * stk.amount / PRECISION_FACTOR;
+        }
 
-        return (stk.acc
-                + ypt * stk.amount / PRECISION_FACTOR
-                - stk.claimed);
+        return c - stk.claimed;
     }
 
     function claim(uint32 stakeId) public {
