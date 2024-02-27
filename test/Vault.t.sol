@@ -461,17 +461,8 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
 
         assertClose(vault.claimable(stake1), 0, 0);
-
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("check stake2");
         assertClose(vault.claimable(stake2), 0, 0);
         assertClose(vault.claimable(stake3), 0.1 ether, 100);
-
-        console.log("");
-        console.log("");
-        console.log("");
 
         simulateYield(0.2 ether);
 
@@ -498,7 +489,6 @@ contract VaultTest is BaseTest {
         claimAndVerify(stake3, bob, 0.1 ether, true);
         claimAndVerify(stake4, chad, 0.1 ether, true);
 
-        console.log("c1", vault.claimable(stake1));
         assertClose(vault.claimable(stake1), 0, 100);
         assertClose(vault.claimable(stake2), 0, 100);
         assertClose(vault.claimable(stake3), 0, 100);
@@ -513,7 +503,6 @@ contract VaultTest is BaseTest {
 
     function claimAndVerify(uint32 stakeId, address user, uint256 amount, bool dumpCoins) internal {
 
-        console.log("cav check claimable");
         assertClose(vault.claimable(stakeId), amount, 10);
 
         uint256 before = IERC20(stEth).balanceOf(user);
@@ -523,18 +512,9 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
 
         uint256 delta = IERC20(stEth).balanceOf(user) - before;
-        console.log("cav check delta");
         assertClose(delta, amount, 10);
 
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("");
-        console.log("cav claimable 0:", vault.claimable(stakeId));
         assertClose(vault.claimable(stakeId), 0, 10);
-        console.log("");
-        console.log("");
-        console.log("");
 
         vm.startPrank(user);
         vault.claim(stakeId);
@@ -542,7 +522,6 @@ contract VaultTest is BaseTest {
 
         delta = IERC20(stEth).balanceOf(user) - before;
         assertClose(delta, amount, 10);
-        console.log("cav check delta 2");
 
         if (dumpCoins) {
             vm.startPrank(user);

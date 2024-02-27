@@ -290,14 +290,12 @@ contract Vault {
 
         uint256 c;
         if (stk.amount == 0) {
-            console.log("unstaked, using acc", stk.acc, stk.claimed);
             // unstaked, use saved value
             c = stk.acc;
         } else {
             // staked, use live value
             assert(stk.acc == 0);  // only set when unstaking
             uint256 ypt = _stakeYpt(stakeId);
-            console.log("staked, using ypt", ypt);
             c = ypt * stk.amount / PRECISION_FACTOR;
         }
 
@@ -309,10 +307,8 @@ contract Vault {
         require(stk.user == msg.sender, "y claim user");
         uint256 a = claimable(stakeId);
         uint256 b = stEth.balanceOf(address(this));
-        console.log("claim min", a, b);
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
-        console.log("stk.claimed += amount", amount);
         stk.claimed += amount;
 
         stEth.transfer(msg.sender, amount);
