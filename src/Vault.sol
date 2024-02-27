@@ -80,6 +80,11 @@ contract Vault {
                      uint32 indexed stakeId,
                      uint256 amount);
 
+    event HodlUnstaked(address indexed user,
+                       uint192 indexed strike,
+                       uint32 indexed stakeId,
+                       uint256 amount);
+
     event HodlRedeemed(address indexed user,
                        uint192 indexed strike,
                        uint32 indexed stakeId,
@@ -256,7 +261,6 @@ contract Vault {
     }
 
     function yUnstake(uint32 stakeId, address user) public {
-
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y unstake user");
         require(stk.amount > 0, "y unstake zero");
@@ -330,6 +334,18 @@ contract Vault {
         emit HodlStaked(user, strike, id, amount);
 
         return id;
+    }
+
+    function hodlUnstake(uint32 stakeId, uint256 amount, address user) public {
+        HodlStake storage stk = hodlStakes[stakeId];
+        require(stk.user == msg.sender, "hodl unstake user");
+        require(stk.amount >= amount, "hodl unstake zero");
+
+        hodlMulti.mint(user, stk.strike, amount);
+
+        stk.amount -= amount;
+
+        emit HodlUnstaked(user, stk.strike, stakeId, amount);
     }
 
     function yieldPerToken() public view returns (uint256) {

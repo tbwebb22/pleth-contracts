@@ -93,7 +93,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.yMulti().balanceOf(bob, strike3), 0);
         assertEq(vault.yMulti().balanceOf(chad, strike3), 8 ether - 1);
 
-        // stake hodl tokens, receive y tokens
+        // stake hodl tokens
         vm.startPrank(alice);
         uint32 stake1 = vault.hodlStake(strike1, 2 ether, alice);
         vm.stopPrank();
@@ -495,6 +495,83 @@ contract VaultTest is BaseTest {
         assertClose(vault.claimable(stake4), 0, 100);
     }
 
+    function testUnstakeHodl() public {
+        initVault();
+
+        // mint hodl tokens
+        vm.startPrank(alice);
+        vault.mint{value: 4 ether}(strike1);
+        vm.stopPrank();
+
+        // stake hodl token
+        vm.startPrank(alice);
+        uint32 stake1 = vault.hodlStake(strike1, 2 ether, alice);
+        vm.stopPrank();
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike1), 2 ether, 10);
+        assertClose(vault.hodlMulti().balanceOf(bob, strike1), 0, 10);
+        {
+            ( , , , uint256 amount) = vault.hodlStakes(stake1);
+            assertClose(amount, 2 ether, 10);
+        }
+
+        // unstake 1 hodl to bob, then hit strike and check redemption
+        vm.startPrank(alice);
+        vault.hodlUnstake(stake1, 1 ether, bob);
+        vm.stopPrank();
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike1), 2 ether, 10);
+        assertClose(vault.hodlMulti().balanceOf(bob, strike1), 1 ether, 10);
+
+        vm.startPrank(bob);
+        uint32 stake2 = vault.hodlStake(strike1, 1 ether, bob);
+        vm.stopPrank();
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike1), 2 ether, 10);
+        assertClose(vault.hodlMulti().balanceOf(bob, strike1), 0, 10);
+
+        {
+            ( , , , uint256 amount1) = vault.hodlStakes(stake1);
+            ( , , , uint256 amount2) = vault.hodlStakes(stake2);
+            assertClose(amount1, 1 ether, 10);
+            assertClose(amount2, 1 ether, 10);
+        }
+
+        oracle.setPrice(2001_00000000);
+
+        assertClose(IERC20(stEth).balanceOf(alice), 0 ether, 10);
+        assertClose(IERC20(stEth).balanceOf(bob), 0 ether, 10);
+
+        vm.startPrank(alice);
+        vm.expectRevert("redeem amount");
+        vault.redeem(strike1, 1.1 ether, stake1);
+        vault.redeem(strike1, 1 ether, stake1);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vault.redeem(strike1, 1 ether, stake2);
+        vm.stopPrank();
+
+        assertClose(IERC20(stEth).balanceOf(alice), 1 ether, 10);
+        assertClose(IERC20(stEth).balanceOf(bob), 1 ether, 10);
+
+        {
+            ( , , , uint256 amount1) = vault.hodlStakes(stake1);
+            ( , , , uint256 amount2) = vault.hodlStakes(stake2);
+            assertClose(amount1, 0, 10);
+            assertClose(amount2, 0, 10);
+        }
+
+        vm.startPrank(alice);
+        vm.expectRevert("redeem amount");
+        vault.redeem(strike1, 1 ether, stake1);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert("redeem amount");
+        vault.redeem(strike1, 1 ether, stake2);
+        vm.stopPrank();
+    }
 
     function simulateYield(uint256 amount) internal {
         IStEth(vault.stEth()).submit{value: amount}(address(0));
