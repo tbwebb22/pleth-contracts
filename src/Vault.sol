@@ -307,6 +307,9 @@ contract Vault {
     function claim(uint32 stakeId) public {
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y claim user");
+        uint256 a = claimable(stakeId);
+        uint256 b = stEth.balanceOf(address(this));
+        console.log("claim min", a, b);
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
         console.log("stk.claimed += amount", amount);

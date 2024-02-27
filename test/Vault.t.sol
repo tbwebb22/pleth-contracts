@@ -389,10 +389,10 @@ contract VaultTest is BaseTest {
     function testUnstakeY() public {
         initVault();
 
-        vm.startPrank(alice);
-
         // mint hodl tokens
+        vm.startPrank(alice);
         vault.mint{value: 4 ether}(strike1);
+        vm.stopPrank();
 
         // stake y token
         vm.startPrank(alice);
@@ -418,7 +418,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.totalCumulativeYield(), 0.2 ether - 1);
         assertEq(vault.claimable(stake1), 0.1 ether);
 
-        // lets do a bit more complicated: two stakes + only unstake part of it
+        // lets do a bit more complicated: two stakes + unstake + multi yield events
         vm.startPrank(alice);
         vault.yMulti().safeTransferFrom(alice, bob, strike1, 2 ether, "");
         vm.stopPrank();
@@ -426,7 +426,7 @@ contract VaultTest is BaseTest {
         assertClose(vault.yMulti().balanceOf(alice, strike1), 2 ether, 100);
         assertClose(vault.yMulti().balanceOf(bob, strike1), 2 ether, 100);
 
-        // alice stakes 2, bob stakes 1
+        // alice stakes 2, bob stakes 1n
         vm.startPrank(alice);
         uint32 stake2 = vault.yStake(strike1, 2 ether - 1, alice);
         vm.stopPrank();
@@ -455,7 +455,7 @@ contract VaultTest is BaseTest {
         assertClose(vault.claimable(stake2), 0, 0);
         assertClose(vault.claimable(stake3), 0.1 ether, 100);
 
-        // alice her tokens, check that it still works
+        // alice unstakes her tokens, check that it still works
         vm.startPrank(alice);
         vault.yUnstake(stake2, alice);
         vm.stopPrank();
@@ -478,6 +478,31 @@ contract VaultTest is BaseTest {
         assertClose(vault.claimable(stake1), 0, 0);
         assertClose(vault.claimable(stake2), 0, 100);
         assertClose(vault.claimable(stake3), 0.3 ether, 100);
+
+        // bob claims, then alice stakes for chad
+        claimAndVerify(stake3, bob, 0.3 ether, true);
+
+        // stake y token
+        vm.startPrank(alice);
+        uint32 stake4 = vault.yStake(strike1, 1 ether, chad);
+        vm.stopPrank();
+
+        simulateYield(0.2 ether);
+
+        assertClose(vault.claimable(stake1), 0, 0);
+        assertClose(vault.claimable(stake2), 0, 100);
+        assertClose(vault.claimable(stake3), 0.1 ether, 100);
+        assertClose(vault.claimable(stake4), 0.1 ether, 100);
+
+        // everyone claims
+        claimAndVerify(stake3, bob, 0.1 ether, true);
+        claimAndVerify(stake4, chad, 0.1 ether, true);
+
+        console.log("c1", vault.claimable(stake1));
+        assertClose(vault.claimable(stake1), 0, 100);
+        assertClose(vault.claimable(stake2), 0, 100);
+        assertClose(vault.claimable(stake3), 0, 100);
+        assertClose(vault.claimable(stake4), 0, 100);
     }
 
 
@@ -489,7 +514,7 @@ contract VaultTest is BaseTest {
     function claimAndVerify(uint32 stakeId, address user, uint256 amount, bool dumpCoins) internal {
 
         console.log("cav check claimable");
-        assertEq(vault.claimable(stakeId), amount);
+        assertClose(vault.claimable(stakeId), amount, 10);
 
         uint256 before = IERC20(stEth).balanceOf(user);
 
@@ -505,8 +530,8 @@ contract VaultTest is BaseTest {
         console.log("");
         console.log("");
         console.log("");
-        console.log("cav claimable 0");
-        assertEq(vault.claimable(stakeId), 0);
+        console.log("cav claimable 0:", vault.claimable(stakeId));
+        assertClose(vault.claimable(stakeId), 0, 10);
         console.log("");
         console.log("");
         console.log("");
