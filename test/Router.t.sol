@@ -31,8 +31,9 @@ contract RouterTest is BaseTest {
     FakeOracle public oracle;
 
     // Tokens
-    address public stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public steth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address public wsteth = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
     // Uniswap
     address public uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -56,7 +57,7 @@ contract RouterTest is BaseTest {
     function initRouter() public {
         // Set up: deploy vault, mint some hodl for alice, make it redeemable
         oracle = new FakeOracle();
-        vault = new Vault(stEth, address(oracle));
+        vault = new Vault(steth, address(oracle));
         oracle.setPrice(strike1 - 1);
         address hodl1 = vault.deployERC20(strike1);
         vm.startPrank(alice);
@@ -107,6 +108,8 @@ contract RouterTest is BaseTest {
 
         router = new Router(address(vault),
                             address(weth),
+                            address(steth),
+                            address(wsteth),
                             uniswapV3Factory,
                             swapRouter,
                             quoterV2,
@@ -129,13 +132,13 @@ contract RouterTest is BaseTest {
         vm.expectRevert("redeem user");
         vault.redeem(strike1, out, stakeId);
 
-        uint256 before = IERC20(stEth).balanceOf(alice);
+        uint256 before = IERC20(steth).balanceOf(alice);
 
         vm.startPrank(alice);
         vault.redeem(strike1, out, stakeId);
         vm.stopPrank();
 
-        uint256 delta = IERC20(stEth).balanceOf(alice) - before;
+        uint256 delta = IERC20(steth).balanceOf(alice) - before;
         assertEq(delta, out - 1);
 
         (uint256 amountY, uint256 loan) = router.previewY(strike1, 0.2 ether);
@@ -176,5 +179,19 @@ contract RouterTest is BaseTest {
         assertEq(out, 191381783398625730);
         assertEq(previewOut, 191381783398625730);
         assertEq(delta, 191381783398625730);
+
+        uint256 previewY = router.previewYSell(strike1, 0.2 ether);
+        console.log("previewY       ", previewY);
+
+        console.log("alice y balance", vault.yMulti().balanceOf(alice, strike1));
+
+        vm.startPrank(alice);
+        vault.yMulti().setApprovalForAll(address(router), true);
+        router.ySell(strike1, 0.2 ether, previewY);
+        vm.stopPrank();
+
+        /* vm.startPrank(alice); */
+        /* (uint256 outY, uint32 stake1) = router.(strike1, 0.2 ether); */
+        /* vm.stopPrank(); */
     }
 }

@@ -142,10 +142,14 @@ contract Vault {
     function mint(uint192 strike) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
+        console.log("submitting", msg.value);
+
         uint256 before = stEth.balanceOf(address(this));
         stEth.submit{value: msg.value}(address(0));
         uint256 delta = stEth.balanceOf(address(this)) - before;
         deposits += delta;
+
+        console.log("delta got ", delta);
 
         // create the epoch if needed
         if (epochs[strike] == 0) {
@@ -279,7 +283,6 @@ contract Vault {
 
     function _stakeYpt(uint32 stakeId) internal view returns (uint256) {
         YStake storage stk = yStakes[stakeId];
-        uint256 ypt;
         if (epochs[stk.strike] == stk.epochId) {
             // active epoch
             return yieldPerToken();
@@ -309,8 +312,6 @@ contract Vault {
     function claim(uint32 stakeId) public {
         YStake storage stk = yStakes[stakeId];
         require(stk.user == msg.sender, "y claim user");
-        uint256 a = claimable(stakeId);
-        uint256 b = stEth.balanceOf(address(this));
         uint256 amount = _min(claimable(stakeId), stEth.balanceOf(address(this)));
 
         stk.claimed += amount;
