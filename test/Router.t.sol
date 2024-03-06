@@ -167,28 +167,44 @@ contract RouterTest is BaseTest {
 
         IERC20 token = IERC20(vault.deployments(strike1));
 
-        uint256 before = IERC20(address(weth)).balanceOf(alice);
+        {
+            uint256 before = IERC20(address(weth)).balanceOf(alice);
 
-        vm.startPrank(alice);
-        token.approve(address(router), 0.2 ether);
-        (uint256 out) = router.hodlSell(strike1, 0.2 ether, previewOut);
-        vm.stopPrank();
+            vm.startPrank(alice);
+            token.approve(address(router), 0.2 ether);
+            (uint256 out) = router.hodlSell(strike1, 0.2 ether, previewOut);
+            vm.stopPrank();
 
-        uint256 delta = IERC20(address(weth)).balanceOf(alice) - before;
+            uint256 delta = IERC20(address(weth)).balanceOf(alice) - before;
 
-        assertEq(out, 191381783398625730);
-        assertEq(previewOut, 191381783398625730);
-        assertEq(delta, 191381783398625730);
+            assertEq(out, 191381783398625730);
+            assertEq(previewOut, 191381783398625730);
+            assertEq(delta, 191381783398625730);
+        }
 
-        uint256 previewY = router.previewYSell(strike1, 0.2 ether);
-        console.log("previewY       ", previewY);
+        {
+            (uint256 loan, uint256 previewProfit) = router.previewYSell(strike1, 0.2 ether);
+            console.log("");
+            console.log("previewY loan  ", loan);
+            console.log("previewY profit", previewProfit);
+            console.log("alice y balance", vault.yMulti().balanceOf(alice, strike1));
 
-        console.log("alice y balance", vault.yMulti().balanceOf(alice, strike1));
+            uint256 before = IERC20(address(weth)).balanceOf(alice);
 
-        vm.startPrank(alice);
-        vault.yMulti().setApprovalForAll(address(router), true);
-        router.ySell(strike1, 0.2 ether, previewY);
-        vm.stopPrank();
+            vm.startPrank(alice);
+            vault.yMulti().setApprovalForAll(address(router), true);
+            uint256 out = router.ySell(strike1, loan, 0.2 ether);
+            vm.stopPrank();
+
+            uint256 delta = IERC20(address(weth)).balanceOf(alice) - before;
+
+            console.log("out  ", out);
+            console.log("delta", delta);
+
+            assertEq(previewProfit, 7164532291331987);
+            assertClose(out, 7164532291331987, 1);
+            assertClose(delta, 7164532291331987, 1);
+        }
 
         /* vm.startPrank(alice); */
         /* (uint256 outY, uint32 stake1) = router.(strike1, 0.2 ether); */

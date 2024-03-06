@@ -88,22 +88,6 @@ contract Router {
         return amountOut;
     }
 
-    function previewYSell(uint192 strike, uint256 amount) public returns (uint256) {
-        IERC20 token = IERC20(vault.deployments(strike));
-
-        // y sales go through 
-        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
-            tokenIn: address(weth),
-            tokenOut: address(token),
-            amountIn: amount,
-            fee: FEE,
-            sqrtPriceLimitX96: 0 });
-
-        (uint256 amountOut, , , ) = quoterV2.quoteExactInputSingle(params);
-
-        return amountOut - amount;
-    }
-
     function previewHodl(uint192 strike, uint256 amount) public returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
@@ -223,6 +207,43 @@ contract Router {
         return loan * percent / 10_000;
     }
 
+    function previewYSell(uint192 strike, uint256 amount) public returns (uint256, uint256) {
+        IERC20 token = IERC20(vault.deployments(strike));
+
+        // y sales go through 
+        IQuoterV2.QuoteExactOutputSingleParams memory params = IQuoterV2.QuoteExactOutputSingleParams({
+            tokenIn: address(weth),
+            tokenOut: address(token),
+            amount: amount,
+            fee: FEE,
+            sqrtPriceLimitX96: 0 });
+        (uint256 loan, , , ) = quoterV2.quoteExactOutputSingle(params);
+
+        // after we redeem for steth, it will be wrapped in wsteth
+        uint256 amountWsteth = wsteth.getWstETHByStETH(amount);
+
+        console.log("xx amountWsteth", amountWsteth);
+
+        IQuoterV2.QuoteExactInputSingleParams memory paramsWeth = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: address(wsteth),
+            tokenOut: address(weth),
+            amountIn: amountWsteth,
+            fee: 500,
+            sqrtPriceLimitX96: 0 });
+        (uint256 amountOutWeth, , , ) = quoterV2.quoteExactInputSingle(paramsWeth);
+
+        console.log("yy amountOutWeth", amountOutWeth);
+
+        uint256 profit = amountOutWeth - _flashLoanFee(loan) - loan;
+
+        console.log("zz amountw ", amountOutWeth);
+        console.log("zz sub fee ", _flashLoanFee(loan));
+        console.log("zz sub loan", loan);
+        console.log("zz profit  ", profit);
+
+        return (loan, profit);
+    }
+
     function previewY(uint192 strike, uint256 value) public returns (uint256, uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
@@ -248,16 +269,23 @@ contract Router {
         return (amount, stakeId);
     }
 
-    function ySell(uint192 strike, uint256 amount, uint256 minOut) public returns (uint256) {
+    function ySell(uint192 strike, uint256 loan, uint256 amount) public returns (uint256) {
         bytes memory data = abi.encode(LOAN_Y_SELL, msg.sender, strike, amount);
 
-        uint256 loan = amount;// + _flashLoanFee(amount);
-        console.log("start loan", loan);
-        /* // TOOD: pass in minOut */
-        aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
-        console.log("loan done");
+        console.log("----");
+        console.log("ysell loan  ", loan);
+        console.log("ysell amount", amount);
 
-        return 0;
+        uint256 before = IERC20(address(weth)).balanceOf(address(this));
+        aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
+        uint256 profit = IERC20(address(weth)).balanceOf(address(this)) - before;
+
+        console.log("profit  ", profit);
+        console.log("weth bal", IERC20(address(weth)).balanceOf(address(this)));
+
+        IERC20(address(weth)).transfer(msg.sender, profit);
+
+        return profit;
     }
 
     function _assertMaxDiffAndTakeSmaller(uint256 a, uint256 b, uint256 maxDiff) internal pure returns (uint256) {
@@ -350,6 +378,11 @@ contract Router {
         IERC20(address(weth)).approve(address(swapRouter), 0);
         IERC20(address(weth)).approve(address(swapRouter), amount);
 
+        console.log("");
+        console.log("");
+        console.log("my hodl balance before", vault.hodlMulti().balanceOf(address(this), strike));
+        console.log("");
+
         ISwapRouter.ExactOutputSingleParams memory params  =
             ISwapRouter.ExactOutputSingleParams({
                 tokenIn: address(weth),
@@ -358,15 +391,19 @@ contract Router {
                 recipient: address(this),
                 deadline: block.timestamp + 1,
                 amountOut: amount,
-                amountInMaximum: 9999999 ether,  // TODO
+                amountInMaximum: loan,
                 sqrtPriceLimitX96: 0 });
 
         uint256 inp = swapRouter.exactOutputSingle(params);
-        console.log("swap WETH -> HODL took inp:", inp);
 
-        console.log("my hodl balance", vault.hodlMulti().balanceOf(address(this), strike));
-        console.log("my y balance   ", vault.yMulti().balanceOf(address(this), strike));
-        console.log("my weth balance", IERC20(address(weth)).balanceOf(address(this)));
+        console.log("");
+        console.log("");
+        console.log("swap WETH -> HODL took inp:", inp);
+        console.log("");
+        console.log("");
+        console.log("my hodl balance after ", vault.hodlMulti().balanceOf(address(this), strike));
+        console.log("my y balance          ", vault.yMulti().balanceOf(address(this), strike));
+        console.log("my weth balance       ", IERC20(address(weth)).balanceOf(address(this)));
 
         // redeem y + hodl for steth
         console.log("");
@@ -395,11 +432,13 @@ contract Router {
         bal = IERC20(wsteth).balanceOf(address(this));
         wsteth.approve(address(swapRouter), bal);
 
+        console.log("xx bal", bal);
+
         ISwapRouter.ExactInputSingleParams memory swapParams =
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: address(wsteth),
                 tokenOut: address(weth),
-                fee: FEE,
+                fee: 500,
                 recipient: address(this),
                 deadline: block.timestamp + 1,
                 amountIn: bal,
@@ -411,9 +450,20 @@ contract Router {
         console.log("");
         console.log("wsteth bal     ", IERC20(wsteth).balanceOf(address(this)));
         console.log("weth bal       ", IERC20(address(weth)).balanceOf(address(this)));
+        console.log("yy out         ", out);
+        console.log("loan + fee     ", loan + fee);
+
+        console.log("zz amountw ", IERC20(address(weth)).balanceOf(address(this)));
+        console.log("zz sub fee ", fee);
+        console.log("zz sub loan", loan);
+        console.log("zz profit  ", out - (loan + fee));
+
         console.log("");
 
         console.log("wsteth -> weth out", out);
+
+        console.log("zzz expected balance after loan repayment",
+                    IERC20(address(weth)).balanceOf(address(this)) - (loan + fee));
 
         // approve repayment
         IERC20(address(weth)).approve(address(aavePool), loan + fee);

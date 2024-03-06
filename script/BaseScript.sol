@@ -17,8 +17,9 @@ contract BaseScript is Script {
     address deployerAddress;
 
     // Addresses that vary by network
-    address stEth;
     address weth;
+    address steth;
+    address wsteth;
     address ethPriceFeed;
 
     function eq(string memory str1, string memory str2) public pure returns (bool) {
@@ -30,7 +31,8 @@ contract BaseScript is Script {
             pk = vm.envUint("MAINNET_PRIVATE_KEY");
             deployerAddress = vm.envAddress("MAINNET_DEPLOYER_ADDRESS");
 
-            stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            steth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            wsteth = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
             weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -39,12 +41,13 @@ contract BaseScript is Script {
             deployerAddress = vm.envAddress("LOCALHOST_DEPLOYER_ADDRESS");
 
             // Mainnet addresses
-            stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            steth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            wsteth = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
             weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
             // Goerli Addresses
-            /* stEth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */
+            /* steth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */
             /* ethPriceFeed = 0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e; */
 
         } else if (eq(vm.envString("NETWORK"), "fork")) {
@@ -52,12 +55,13 @@ contract BaseScript is Script {
             deployerAddress = vm.envAddress("FORK_DEPLOYER_ADDRESS");
 
             // Mainnet addresses
-            stEth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            steth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+            wsteth = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
             ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
             weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
             // Goerli Addresses
-            /* stEth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */
+            /* steth = 0x1643E812aE58766192Cf7D2Cf9567dF2C37e9B7F; */
             /* ethPriceFeed = 0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e; */
 
         }

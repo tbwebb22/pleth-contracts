@@ -47,7 +47,7 @@ contract DeployScript is BaseScript {
         FakeOracle oracle = new FakeOracle();
         oracle.setPrice(1999_00000000);
 
-        vault = new Vault(stEth, address(oracle));
+        vault = new Vault(steth, address(oracle));
 
         if (true) {
             deployUniswap(strike1, 73044756656988589698425290750, 85935007831751276823975034880);
@@ -57,6 +57,8 @@ contract DeployScript is BaseScript {
 
         Router router = new Router(address(vault),
                                    address(weth),
+                                   address(steth),
+                                   address(wsteth),
                                    mainnet_UniswapV3Factory,
                                    mainnet_SwapRouter,
                                    mainnet_QuoterV2,
