@@ -142,14 +142,10 @@ contract Vault {
     function mint(uint192 strike) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
-        console.log("submitting", msg.value);
-
         uint256 before = stEth.balanceOf(address(this));
         stEth.submit{value: msg.value}(address(0));
         uint256 delta = stEth.balanceOf(address(this)) - before;
         deposits += delta;
-
-        console.log("delta got ", delta);
 
         // create the epoch if needed
         if (epochs[strike] == 0) {

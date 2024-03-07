@@ -24,7 +24,6 @@ contract HodlToken is IERC20 {
     }
 
     function balanceOf(address user) public view returns (uint256) {
-        console.log("getting balance of", user);
         return hodlMulti.balanceOf(user, strike);
     }
 

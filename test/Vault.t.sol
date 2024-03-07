@@ -287,7 +287,7 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        uint256 epoch1 = vault.nextId();
+        vault.nextId();
         vault.mint{value: 1 ether}(strike1);
         vm.stopPrank();
 
@@ -310,9 +310,6 @@ contract VaultTest is BaseTest {
         vm.startPrank(alice);
         hodl1.transfer(bob, 0.1 ether);
         vm.stopPrank();
-
-        console.log("");
-        console.log("");
 
         assertEq(hodl1.balanceOf(alice), 0.9 ether - 1);
         assertEq(hodl1.balanceOf(bob), 0.1 ether);

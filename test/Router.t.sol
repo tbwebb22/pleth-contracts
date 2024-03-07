@@ -150,7 +150,11 @@ contract RouterTest is BaseTest {
         assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
 
         vm.startPrank(alice);
-        (uint256 outY, uint32 stake1) = router.y{value: 0.2 ether}(strike1, loan);
+
+        vm.expectRevert("y min out");
+        router.y{value: 0.2 ether}(strike1, loan, amountY + 1);
+
+        (uint256 outY, uint32 stake1) = router.y{value: 0.2 ether}(strike1, loan, amountY - 1);
         vm.stopPrank();
 
         assertClose(outY, amountY, 1);
@@ -184,22 +188,19 @@ contract RouterTest is BaseTest {
 
         {
             (uint256 loan, uint256 previewProfit) = router.previewYSell(strike1, 0.2 ether);
-            console.log("");
-            console.log("previewY loan  ", loan);
-            console.log("previewY profit", previewProfit);
-            console.log("alice y balance", vault.yMulti().balanceOf(alice, strike1));
 
             uint256 before = IERC20(address(weth)).balanceOf(alice);
 
             vm.startPrank(alice);
             vault.yMulti().setApprovalForAll(address(router), true);
-            uint256 out = router.ySell(strike1, loan, 0.2 ether);
+
+            vm.expectRevert("y sell min out");
+            router.ySell(strike1, loan, 0.2 ether, previewProfit + 1);
+
+            uint256 out = router.ySell(strike1, loan, 0.2 ether, previewProfit - 1);
             vm.stopPrank();
 
             uint256 delta = IERC20(address(weth)).balanceOf(alice) - before;
-
-            console.log("out  ", out);
-            console.log("delta", delta);
 
             assertEq(previewProfit, 7164532291331987);
             assertClose(out, 7164532291331987, 1);
