@@ -205,9 +205,5 @@ contract RouterTest is BaseTest {
             assertClose(out, 7164532291331987, 1);
             assertClose(delta, 7164532291331987, 1);
         }
-
-        /* vm.startPrank(alice); */
-        /* (uint256 outY, uint32 stake1) = router.(strike1, 0.2 ether); */
-        /* vm.stopPrank(); */
     }
 }

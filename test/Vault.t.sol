@@ -62,8 +62,6 @@ contract VaultTest is BaseTest {
         vault.mint{value: 3 ether}(strike1);
         vm.stopPrank();
 
-        return;
-
         vm.startPrank(bob);
         uint256 epoch2 = vault.nextId();
         vault.mint{value: 4 ether}(strike2);
@@ -285,7 +283,13 @@ contract VaultTest is BaseTest {
     }
 
     function testERC20() public {
-        testVault();
+        initVault();
+
+        // mint hodl tokens
+        vm.startPrank(alice);
+        uint256 epoch1 = vault.nextId();
+        vault.mint{value: 1 ether}(strike1);
+        vm.stopPrank();
 
         address hodl1Address = vault.deployERC20(strike1);
 
@@ -296,6 +300,8 @@ contract VaultTest is BaseTest {
 
         assertEq(vault.hodlMulti().totalSupply(strike1), hodl1.totalSupply());
 
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 1);
+
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), hodl1.balanceOf(alice));
         assertEq(vault.hodlMulti().balanceOf(bob, strike1), hodl1.balanceOf(bob));
         assertEq(vault.hodlMulti().balanceOf(chad, strike1), hodl1.balanceOf(chad));
@@ -304,6 +310,9 @@ contract VaultTest is BaseTest {
         vm.startPrank(alice);
         hodl1.transfer(bob, 0.1 ether);
         vm.stopPrank();
+
+        console.log("");
+        console.log("");
 
         assertEq(hodl1.balanceOf(alice), 0.9 ether - 1);
         assertEq(hodl1.balanceOf(bob), 0.1 ether);
