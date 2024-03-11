@@ -19,6 +19,10 @@ contract HodlToken is IERC20 {
         strike = strike_;
     }
 
+    function decimals() public view virtual returns (uint8) {
+        return 18;
+    }
+
     function totalSupply() public view returns (uint256) {
         return hodlMulti.totalSupply(strike);
     }
