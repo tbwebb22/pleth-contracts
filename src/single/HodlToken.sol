@@ -65,8 +65,6 @@ contract HodlToken is IERC20 {
 
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
         require(from == msg.sender || _allowances[from][msg.sender] >= amount, "not authorized");
-        uint256 fromBalance = hodlMulti.balanceOf(from, strike);
-        require(fromBalance >= amount, "insufficient balance");
         _allowances[from][msg.sender] -= amount;
 
         hodlMulti.safeTransferFrom(from, to, strike, amount, "");

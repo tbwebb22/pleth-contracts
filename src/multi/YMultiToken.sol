@@ -15,17 +15,12 @@ contract YMultiToken is ERC1155, Ownable {
     uint256 public nextId = 1;
     uint256 public staked;
 
-    mapping (uint256 => mapping(address => uint256)) public balances;
-    mapping (uint256 => uint256) public strikeSeqs;
+    // seq -> address -> balance
+    mapping (uint256 strikeSeq => mapping(address user => uint256 balance)) public balances;
 
-    struct Stake {
-        address user;
-        uint256 timestamp;
-        uint256 strike;
-        uint256 epochId;
-        uint256 amount;
-    }
-    mapping (uint256 => Stake) public stakes;
+    // strike -> active seq
+    mapping (uint256 strike => uint256 strikeSeq) public strikeSeqs;
+
     mapping (uint256 => uint256) public totalSupply;
     mapping (uint256 => bool) public isPaused;
 
@@ -70,7 +65,6 @@ contract YMultiToken is ERC1155, Ownable {
     }
 
     function burn(address user, uint256 strike, uint256 amount) public onlyOwner {
-        // _burn(user, strike, amount);
         uint256 seq = strikeSeqs[strike];
         require(balances[seq][user] >= amount, "insufficient to burn");
         balances[seq][user] -= amount;
