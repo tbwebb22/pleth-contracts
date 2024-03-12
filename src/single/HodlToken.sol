@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/console.sol";
 
+import "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { HodlMultiToken } from "../multi/HodlMultiToken.sol";
@@ -14,9 +15,23 @@ contract HodlToken is IERC20 {
     HodlMultiToken public immutable hodlMulti;
     uint256 public immutable strike;
 
+    string private _name;
+    string private _symbol;
+
     constructor(address hodlMulti_, uint256 strike_) {
         hodlMulti = HodlMultiToken(hodlMulti_);
         strike = strike_;
+
+        _name = string(abi.encodePacked("plETH @ ", Strings.toString(strike_ / 1e8)));
+        _symbol = string(abi.encodePacked("plETH @ ", Strings.toString(strike_ / 1e8)));
+    }
+
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
     }
 
     function decimals() public view virtual returns (uint8) {
