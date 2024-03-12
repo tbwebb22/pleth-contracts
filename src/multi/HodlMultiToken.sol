@@ -59,12 +59,12 @@ contract HodlMultiToken is ERC1155, Ownable {
     }
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
-        _mint(user, strike, amount, "");
         totalSupply[strike] += amount;
+        _mint(user, strike, amount, "");
     }
 
     function burn(address user, uint256 strike, uint256 amount) public onlyOwner {
-        _burn(user, strike, amount);
         totalSupply[strike] -= amount;
+        _burn(user, strike, amount);
     }
 }
