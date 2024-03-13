@@ -21,7 +21,11 @@ contract HodlMultiToken is ERC1155, Ownable {
         authorized[operator] = true;
     }
 
-    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory) public override {
+    function safeTransferFrom(address from,
+                              address to,
+                              uint256 strike,
+                              uint256 amount,
+                              bytes memory) public override {
         if (from != msg.sender &&
             !isApprovedForAll(from, msg.sender) &&
             !authorized[msg.sender]) {
@@ -29,12 +33,12 @@ contract HodlMultiToken is ERC1155, Ownable {
             revert ERC1155MissingApprovalForAll(msg.sender, from);
         }
 
-        uint256[] memory ids = new uint256[](1);
-        ids[0] = id;
-        uint256[] memory values = new uint256[](1);
-        values[0] = value;
+        uint256[] memory strikes = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+        strikes[0] = strike;
+        amounts[0] = amount;
 
-        _update(from, to, ids, values);
+        _update(from, to, strikes, amounts);
     }
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {

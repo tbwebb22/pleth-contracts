@@ -56,18 +56,20 @@ contract YMultiToken is ERC1155, Ownable {
     }
 
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
-        if (strikeSeqs[strike] == 0) {
-            strikeSeqs[strike] = nextId++;
-        }
-        uint256 seq = strikeSeqs[strike];
-        balances[seq][user] += amount;
+        uint256[] memory strikes = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+        strikes[0] = strike;
+        amounts[0] = amount;
+        _update(address(0), user, strikes, amounts);
         totalSupply[strike] += amount;
     }
 
     function burn(address user, uint256 strike, uint256 amount) public onlyOwner {
-        uint256 seq = strikeSeqs[strike];
-        require(balances[seq][user] >= amount, "insufficient to burn");
-        balances[seq][user] -= amount;
+        uint256[] memory strikes = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+        strikes[0] = strike;
+        amounts[0] = amount;
+        _update(user, address(0), strikes, amounts);
         totalSupply[strike] -= amount;
     }
 
@@ -101,6 +103,10 @@ contract YMultiToken is ERC1155, Ownable {
 
         for (uint256 i = 0; i < strikes.length; ++i) {
             uint256 strike = strikes[i];
+            if (strikeSeqs[strike] == 0) {
+                strikeSeqs[strike] = nextId++;
+            }
+
             uint256 value = values[i];
             uint256 seq = strikeSeqs[strike];
 
