@@ -99,8 +99,6 @@ contract YMultiToken is ERC1155, Ownable {
 
         require(strikes.length == values.length, "mismatched update length");
 
-        address operator = _msgSender();
-
         for (uint256 i = 0; i < strikes.length; ++i) {
             uint256 strike = strikes[i];
             uint256 value = values[i];
@@ -122,9 +120,9 @@ contract YMultiToken is ERC1155, Ownable {
         if (strikes.length == 1) {
             uint256 strike = strikes[0];
             uint256 value = values[0];
-            emit TransferSingle(operator, from, to, strike, value);
+            emit TransferSingle(msg.sender, from, to, strike, value);
         } else {
-            emit TransferBatch(operator, from, to, strikes, values);
+            emit TransferBatch(msg.sender, from, to, strikes, values);
         }
     }
 }
