@@ -14,7 +14,6 @@ contract YMultiToken is ERC1155, Ownable {
     Vault public immutable vault;
 
     uint256 public nextId = 1;
-    uint256 public staked;
 
     // seq -> address -> balance
     mapping (uint256 strikeSeq => mapping(address user => uint256 balance)) public balances;
