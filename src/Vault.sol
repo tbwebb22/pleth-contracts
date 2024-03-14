@@ -183,53 +183,57 @@ contract Vault {
         return false;
     }
 
-    function redeem(uint128 strike, uint256 amount, uint32 stakeId) external {
-        if (stakeId == 0) {
-            // Redeem via tokens
-            require(hodlMulti.balanceOf(msg.sender, strike) >= amount);
-            require(yMulti.balanceOf(msg.sender, strike) >= amount);
+    function merge(uint128 strike, uint256 amount) external {
+        // Redeem via tokens
+        require(hodlMulti.balanceOf(msg.sender, strike) >= amount);
+        require(yMulti.balanceOf(msg.sender, strike) >= amount);
 
-            hodlMulti.burn(msg.sender, strike, amount);
-            yMulti.burn(msg.sender, strike, amount);
-        } else {
-            // Redeem via staked hodl token
-            HodlStake storage stk = hodlStakes[stakeId];
+        hodlMulti.burn(msg.sender, strike, amount);
+        yMulti.burn(msg.sender, strike, amount);
 
-            require(stk.user == msg.sender, "redeem user");
-            require(stk.amount >= amount, "redeem amount");
-            require(stk.strike == strike, "redeem strike");
-            require(canRedeem(stakeId), "cannot redeem");
+        amount = _min(amount, stEth.balanceOf(address(this)));
+        stEth.transfer(msg.sender, amount);
 
-            // burn the specified hodl stake
-            stk.amount -= amount;
+        deposits -= amount;
+    }
 
-            uint256 epochId = epochs[strike];
+    function redeem(uint256 amount, uint32 stakeId) external {
+        // Redeem via staked hodl token
+        HodlStake storage stk = hodlStakes[stakeId];
 
-            if (epochId != 0) {
-                // checkpoint this strike, to prevent yield accumulation
-                _checkpoint(epochId);
+        require(stk.user == msg.sender, "redeem user");
+        require(stk.amount >= amount, "redeem amount");
+        require(canRedeem(stakeId), "cannot redeem");
 
-                // record the ypt at redemption time
-                terminalYieldPerToken[epochId] = yieldPerToken();
+        // burn the specified hodl stake
+        stk.amount -= amount;
 
-                // update accounting for staked y tokens
-                yStakedTotal -= yStaked[epochId];
-                yStaked[epochId] = 0;
+        uint256 epochId = epochs[stk.strike];
 
-                // don't checkpoint again, trigger new epoch
-                epochs[strike] = 0;
-            }
+        if (epochId != 0) {
+            // checkpoint this strike, to prevent yield accumulation
+            _checkpoint(epochId);
 
-            // burn all staked y tokens at that strike
-            yMulti.burnStrike(strike);
+            // record the ypt at redemption time
+            terminalYieldPerToken[epochId] = yieldPerToken();
+
+            // update accounting for staked y tokens
+            yStakedTotal -= yStaked[epochId];
+            yStaked[epochId] = 0;
+
+            // don't checkpoint again, trigger new epoch
+            epochs[stk.strike] = 0;
         }
+
+        // burn all staked y tokens at that strike
+        yMulti.burnStrike(stk.strike);
 
         amount = _min(amount, stEth.balanceOf(address(this)));
         stEth.transfer(msg.sender, amount);
 
         deposits -= amount;
 
-        emit HodlRedeemed(msg.sender, strike, stakeId, amount);
+        emit HodlRedeemed(msg.sender, stk.strike, stakeId, amount);
     }
 
     function yStake(uint128 strike, uint256 amount, address user) public returns (uint32) {

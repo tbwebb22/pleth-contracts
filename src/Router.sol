@@ -374,11 +374,11 @@ contract Router {
 
         swapRouter.exactOutputSingle(params);
 
-        // redeem y + hodl for steth
+        // merge y + hodl for steth
         vault.hodlMulti().setApprovalForAll(address(vault), true);
         vault.yMulti().setApprovalForAll(address(vault), true);
 
-        vault.redeem(strike, amount, 0);
+        vault.merge(strike, amount);
 
         vault.hodlMulti().setApprovalForAll(address(vault), false);
         vault.yMulti().setApprovalForAll(address(vault), false);
