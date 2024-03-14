@@ -22,8 +22,8 @@ contract HodlToken is IERC20 {
         hodlMulti = HodlMultiToken(hodlMulti_);
         strike = strike_;
 
-        _name = string(abi.encodePacked("plETH @ ", Strings.toString(strike_ / 1e8)));
-        _symbol = string(abi.encodePacked("plETH @ ", Strings.toString(strike_ / 1e8)));
+        _name = hodlMulti.name(strike);
+        _symbol = hodlMulti.symbol(strike);
     }
 
     function name() public view virtual returns (string memory) {

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/console.sol";
 
+import "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import { Ownable } from  "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -16,6 +17,14 @@ contract HodlMultiToken is ERC1155, Ownable {
     mapping(address => bool) public authorized;
 
     constructor(string memory uri_) ERC1155(uri_) Ownable(msg.sender) { }
+
+    function name(uint256 strike) public view virtual returns (string memory) {
+        return string(abi.encodePacked("plETH @ ", Strings.toString(strike / 1e8)));
+    }
+
+    function symbol(uint256 strike) public view virtual returns (string memory) {
+        return string(abi.encodePacked("plETH @ ", Strings.toString(strike / 1e8)));
+    }
 
     function authorize(address operator) public onlyOwner {
         authorized[operator] = true;

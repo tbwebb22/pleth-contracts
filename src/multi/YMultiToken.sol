@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/console.sol"; 
 
+import "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import { Ownable } from  "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -22,16 +23,6 @@ contract YMultiToken is ERC1155, Ownable {
     mapping (uint256 strike => uint256 strikeSeq) public strikeSeqs;
 
     mapping (uint256 => uint256) public totalSupply;
-    mapping (uint256 => bool) public isPaused;
-
-    mapping (uint256 => uint256) public yieldPerTokenAcc;
-    mapping (uint256 => uint256) public cumulativeYieldAcc;
-
-    struct UserInfo {
-        uint256 yieldPerTokenClaimed;
-        uint256 accClaimable;
-    }
-    mapping (address => mapping(uint256 => UserInfo)) infos;
 
     event Staked(address indexed user,
                  uint256 indexed id,
@@ -55,6 +46,14 @@ contract YMultiToken is ERC1155, Ownable {
         vault = Vault(vault_);
     }
 
+    function name(uint256 strike) public view virtual returns (string memory) {
+        return string(abi.encodePacked("ybETH @ ", Strings.toString(strike / 1e8)));
+    }
+
+    function symbol(uint256 strike) public view virtual returns (string memory) {
+        return string(abi.encodePacked("ybETH @ ", Strings.toString(strike / 1e8)));
+    }
+
     function mint(address user, uint256 strike, uint256 amount) public onlyOwner {
         uint256[] memory strikes = new uint256[](1);
         uint256[] memory amounts = new uint256[](1);
@@ -71,17 +70,6 @@ contract YMultiToken is ERC1155, Ownable {
         amounts[0] = amount;
         _update(user, address(0), strikes, amounts);
         totalSupply[strike] -= amount;
-    }
-
-    function _yieldPerToken(uint256 strike) internal view returns (uint256) {
-        uint256 supply = totalSupply[strike];
-        if (supply == 0) return 0;
-        uint256 deltaCumulative = isPaused[strike]
-            ? 0
-            : vault.cumulativeYield(strike) - cumulativeYieldAcc[strike];
-        uint256 incr = (deltaCumulative * vault.PRECISION_FACTOR()
-                        / supply);
-        return yieldPerTokenAcc[strike] + incr;
     }
 
     function balanceOf(address user, uint256 strike) public override view returns (uint256) {
