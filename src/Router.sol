@@ -61,7 +61,7 @@ contract Router {
         return a < b ? a : b;
     }
 
-    function pool(uint128 strike) public view returns (address) {
+    function pool(uint64 strike) public view returns (address) {
         IERC20 hodlToken = IERC20(vault.deployments(strike));
         (address token0, address token1) = address(hodlToken) < address(weth)
             ? (address(hodlToken), address(weth))
@@ -70,7 +70,7 @@ contract Router {
         return uniswapV3Factory.getPool(token0, token1, FEE);
     }
 
-    function previewHodlSell(uint128 strike, uint256 amount) public returns (uint256) {
+    function previewHodlSell(uint64 strike, uint256 amount) public returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -88,7 +88,7 @@ contract Router {
         return amountOut;
     }
 
-    function hodlSell(uint128 strike, uint256 amount, uint256 minOut) public payable returns (uint256) {
+    function hodlSell(uint64 strike, uint256 amount, uint256 minOut) public payable returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -115,7 +115,7 @@ contract Router {
         return out;
     }
 
-    function previewHodl(uint128 strike, uint256 amount) public returns (uint256) {
+    function previewHodl(uint64 strike, uint256 amount) public returns (uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -133,7 +133,7 @@ contract Router {
         return amountOut;
     }
 
-    function hodl(uint128 strike, uint256 minOut) public payable returns (uint256, uint32) {
+    function hodl(uint64 strike, uint256 minOut) public payable returns (uint256, uint32) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -162,7 +162,7 @@ contract Router {
         return (out, stakeId);
     }
 
-    function _searchLoanSize(uint128 strike,
+    function _searchLoanSize(uint64 strike,
                              uint256 value,
                              uint256 lo,
                              uint256 hi,
@@ -207,7 +207,7 @@ contract Router {
         return loan * percent / 10_000;
     }
 
-    function previewY(uint128 strike, uint256 value) public returns (uint256, uint256) {
+    function previewY(uint64 strike, uint256 value) public returns (uint256, uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
         require(address(token) != address(0), "no deployed ERC20");
         address uniPool = pool(strike);
@@ -221,7 +221,7 @@ contract Router {
         return (out, loan);
     }
 
-    function y(uint128 strike, uint256 loan, uint256 minOut) public payable returns (uint256, uint32) {
+    function y(uint64 strike, uint256 loan, uint256 minOut) public payable returns (uint256, uint32) {
         uint256 value = msg.value;
         bytes memory data = abi.encode(LOAN_Y, msg.sender, strike, value + loan, minOut);
         aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
@@ -233,7 +233,7 @@ contract Router {
         return (amount, stakeId);
     }
 
-    function previewYSell(uint128 strike, uint256 amount) public returns (uint256, uint256) {
+    function previewYSell(uint64 strike, uint256 amount) public returns (uint256, uint256) {
         IERC20 token = IERC20(vault.deployments(strike));
 
         // y sales go through 
@@ -261,7 +261,7 @@ contract Router {
         return (loan, profit);
     }
 
-    function ySell(uint128 strike,
+    function ySell(uint64 strike,
                    uint256 loan,
                    uint256 amount,
                    uint256 minOut) public returns (uint256) {
@@ -292,8 +292,8 @@ contract Router {
 
         (uint8 op,
          address user,
-         uint128 strike,
-         uint256 amount) = abi.decode(params, (uint8, address, uint128, uint256));
+         uint64 strike,
+         uint256 amount) = abi.decode(params, (uint8, address, uint64, uint256));
 
         if (op == LOAN_Y) {
             return _executeOperationLoanY(loan, fee, user, strike, amount);
@@ -307,7 +307,7 @@ contract Router {
     function _executeOperationLoanY(uint256 loan,
                                     uint256 fee,
                                     address,
-                                    uint128 strike,
+                                    uint64 strike,
                                     uint256 amount) private returns (bool) {
 
         IERC20 token = IERC20(vault.deployments(strike));
@@ -350,7 +350,7 @@ contract Router {
     function _executeOperationLoanYSell(uint256 loan,
                                         uint256 fee,
                                         address user,
-                                        uint128 strike,
+                                        uint64 strike,
                                         uint256 amount) private returns (bool) {
 
         IERC20 token = IERC20(vault.deployments(strike));

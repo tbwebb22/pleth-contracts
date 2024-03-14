@@ -48,7 +48,7 @@ contract RouterTest is BaseTest {
     IUniswapV3Pool public uniswapV3Pool;
     INonfungiblePositionManager public manager;
 
-    uint128 strike1 = 2000_00000000;
+    uint64 strike1 = 2000_00000000;
 
     function setUp() public {
         init();

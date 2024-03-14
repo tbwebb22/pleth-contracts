@@ -39,9 +39,9 @@ contract VaultTest is BaseTest {
 
     FakeOracle oracle;
 
-    uint128 strike1 = 2000_00000000;
-    uint128 strike2 = 3000_00000000;
-    uint128 strike3 = 4000_00000000;
+    uint64 strike1 = 2000_00000000;
+    uint64 strike2 = 3000_00000000;
+    uint64 strike3 = 4000_00000000;
 
     function setUp() public {
         init();

@@ -23,9 +23,9 @@ contract DeployScript is BaseScript {
 
     Vault public vault;
 
-    uint128 strike1 = 5000_00000000;
-    uint128 strike2 = 10000_00000000;
-    uint128 strike3 = 15000_00000000;
+    uint64 strike1 = 5000_00000000;
+    uint64 strike2 = 10000_00000000;
+    uint64 strike3 = 15000_00000000;
 
     // Uniswap mainnet addresses
     address public mainnet_UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -88,7 +88,7 @@ contract DeployScript is BaseScript {
         }
     }
 
-    function deployUniswap(uint128 strike, uint160 initPrice, uint160 initPriceInv) public {
+    function deployUniswap(uint64 strike, uint160 initPrice, uint160 initPriceInv) public {
         address hodl1 = vault.deployERC20(strike);
 
         (address token0, address token1) = hodl1 < weth
