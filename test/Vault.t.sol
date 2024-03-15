@@ -290,7 +290,6 @@ contract VaultTest is BaseTest {
         IStEth(steth).submit{value: 1 ether}(address(0));
         IERC20(steth).approve(address(vault), 1 ether - 1);
         vault.mint{value: 0}(strike1, 1 ether - 1);
-        /* vault.mint{value: 1 ether}(strike1, 1 ether); */
         vm.stopPrank();
 
         address hodl1Address = vault.deployERC20(strike1);
@@ -356,7 +355,9 @@ contract VaultTest is BaseTest {
         vm.startPrank(alice);
 
         // mint hodl tokens
-        vault.mint{value: 4 ether}(strike1, 4 ether);
+        IStEth(steth).submit{value: 4 ether}(address(0));
+        IERC20(steth).approve(address(vault), 4 ether - 1);
+        vault.mint{value: 0}(strike1, 4 ether - 1);
 
         // stake 2 of 4 before strike hits
         uint32 stake1 = vault.hodlStake(strike1, 2 ether, alice);
