@@ -225,7 +225,6 @@ contract VaultTest is BaseTest {
 
         vm.startPrank(chad);
         uint32 epoch4 = vault.nextId();
-        /* vault.mint{value: 8 ether}(strike3, 8 ether); */
         IStEth(steth).submit{value: 8 ether}(address(0));
         IERC20(steth).approve(address(vault), 8 ether - 1);
         vault.mint{value: 0}(strike3, 8 ether - 1);
@@ -288,8 +287,10 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        vault.nextId();
-        vault.mint{value: 1 ether}(strike1, 1 ether);
+        IStEth(steth).submit{value: 1 ether}(address(0));
+        IERC20(steth).approve(address(vault), 1 ether - 1);
+        vault.mint{value: 0}(strike1, 1 ether - 1);
+        /* vault.mint{value: 1 ether}(strike1, 1 ether); */
         vm.stopPrank();
 
         address hodl1Address = vault.deployERC20(strike1);
@@ -301,7 +302,7 @@ contract VaultTest is BaseTest {
 
         assertEq(vault.hodlMulti().totalSupply(strike1), hodl1.totalSupply());
 
-        assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 1);
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 2);
 
         assertEq(vault.hodlMulti().balanceOf(alice, strike1), hodl1.balanceOf(alice));
         assertEq(vault.hodlMulti().balanceOf(bob, strike1), hodl1.balanceOf(bob));
@@ -312,7 +313,7 @@ contract VaultTest is BaseTest {
         hodl1.transfer(bob, 0.1 ether);
         vm.stopPrank();
 
-        assertEq(hodl1.balanceOf(alice), 0.9 ether - 1);
+        assertEq(hodl1.balanceOf(alice), 0.9 ether - 2);
         assertEq(hodl1.balanceOf(bob), 0.1 ether);
 
         vm.startPrank(degen);
@@ -336,7 +337,7 @@ contract VaultTest is BaseTest {
         hodl1.transferFrom(alice, chad, 0.2 ether);
         vm.stopPrank();
 
-        assertEq(hodl1.balanceOf(alice), 0.7 ether - 1);
+        assertEq(hodl1.balanceOf(alice), 0.7 ether - 2);
         assertEq(hodl1.balanceOf(bob), 0.1 ether);
         assertEq(hodl1.balanceOf(chad), 0.2 ether);
         assertEq(hodl1.balanceOf(degen), 0);
@@ -393,7 +394,6 @@ contract VaultTest is BaseTest {
 
         vm.stopPrank();
     }
-
 
     function testUnstakeY() public {
         initVault();

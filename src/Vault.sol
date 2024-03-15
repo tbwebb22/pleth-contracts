@@ -222,7 +222,7 @@ contract Vault {
 
     function _withdraw(uint256 amount, address user) private returns (uint256) {
         asset.withdraw(_min(amount, asset.maxWithdraw(address(this))),
-                       msg.sender,
+                       user,
                        address(this));
         return amount;
     }
