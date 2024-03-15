@@ -30,20 +30,6 @@ contract RouterTest is BaseTest {
     Router public router;
     FakeOracle public oracle;
 
-    // Tokens
-    address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address public steth = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address public wsteth = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-
-    // Uniswap
-    address public uniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    address public nonfungiblePositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
-    address public swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address public quoterV2 = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
-
-    // Aave
-    address public aavePool = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-
     UniswapV3LiquidityPool public pool;
     IUniswapV3Pool public uniswapV3Pool;
     INonfungiblePositionManager public manager;
@@ -57,11 +43,13 @@ contract RouterTest is BaseTest {
     function initRouter() public {
         // Set up: deploy vault, mint some hodl for alice, make it redeemable
         oracle = new FakeOracle();
-        vault = new Vault(steth, address(oracle));
+        vault = new Vault(steth,
+                          address(0),
+                          address(oracle));
         oracle.setPrice(strike1 - 1);
         address hodl1 = vault.deployERC20(strike1);
         vm.startPrank(alice);
-        vault.mint{value: 3 ether}(strike1);
+        vault.mint{value: 3 ether}(strike1, 3 ether);
         vm.stopPrank();
         oracle.setPrice(strike1 + 1);
 

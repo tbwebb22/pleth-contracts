@@ -317,7 +317,7 @@ contract Router {
         weth.withdraw(loan);
 
         require(address(this).balance == amount, "expected balance == amount");
-        vault.mint{value: amount}(strike);
+        vault.mint{value: amount}(strike, amount);
 
         // handle steth off by 1 error
         amount = _assertMaxDiffAndTakeSmaller(
