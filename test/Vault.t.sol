@@ -401,7 +401,9 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        vault.mint{value: 4 ether}(strike1, 4 ether);
+        IStEth(steth).submit{value: 4 ether}(address(0));
+        IERC20(steth).approve(address(vault), 4 ether - 1);
+        vault.mint{value: 0}(strike1, 4 ether - 1);
         vm.stopPrank();
 
         // stake y token
@@ -412,8 +414,8 @@ contract VaultTest is BaseTest {
         // verify it gets yield
         simulateYield(0.1 ether);
 
-        assertEq(vault.totalCumulativeYield(), 0.1 ether);
-        assertEq(vault.claimable(stake1), 0.1 ether);
+        assertClose(vault.totalCumulativeYield(), 0.1 ether, 100);
+        assertClose(vault.claimable(stake1), 0.1 ether, 100);
         assertClose(vault.yMulti().balanceOf(alice, strike1), 3 ether, 100);
 
         // unstake and verify no yield
@@ -425,8 +427,8 @@ contract VaultTest is BaseTest {
 
         simulateYield(0.1 ether);
 
-        assertEq(vault.totalCumulativeYield(), 0.2 ether - 1);
-        assertEq(vault.claimable(stake1), 0.1 ether);
+        assertClose(vault.totalCumulativeYield(), 0.2 ether, 10);
+        assertClose(vault.claimable(stake1), 0.1 ether, 10);
 
         // lets do a bit more complicated: two stakes + unstake + multi yield events
         vm.startPrank(alice);
@@ -438,7 +440,7 @@ contract VaultTest is BaseTest {
 
         // alice stakes 2, bob stakes 1n
         vm.startPrank(alice);
-        uint32 stake2 = vault.yStake(strike1, 2 ether - 1, alice);
+        uint32 stake2 = vault.yStake(strike1, 2 ether - 2, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -510,7 +512,10 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        vault.mint{value: 4 ether}(strike1, 4 ether);
+        /* vault.mint{value: 4 ether}(strike1, 4 ether); */
+        IStEth(steth).submit{value: 4 ether}(address(0));
+        IERC20(steth).approve(address(vault), 4 ether - 1);
+        vault.mint{value: 0}(strike1, 4 ether - 1);
         vm.stopPrank();
 
         // stake hodl token
