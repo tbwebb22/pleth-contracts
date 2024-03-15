@@ -26,7 +26,17 @@ contract Vault {
     HodlMultiToken public immutable hodlMulti;
     YMultiToken public immutable yMulti;
 
-    mapping (uint256 => address) public deployments;
+    // keep track of deployed erc20 hodl tokens
+    mapping (uint64 strike => address token) public deployments;
+
+    // track staked hodl tokens, which are eligible for redemption
+    struct HodlStake {
+        address user;
+        uint64 strike;
+        uint32 epochId;
+        uint256 amount;
+    }
+    mapping (uint32 stakedId => HodlStake) public hodlStakes;
 
     struct YStake {
         address user;
@@ -36,34 +46,39 @@ contract Vault {
         uint256 claimed;
         uint256 acc;
     }
-    mapping (uint32 => YStake) public yStakes;
-    mapping (uint256 => uint256) public yStaked;
-    mapping (uint256 => uint256) public terminalYieldPerToken;
+    mapping (uint32 stakeId => YStake) public yStakes;
+
+    // amount of y tokens staked in an epoch
+    mapping (uint32 epochId => uint256 amount) public yStaked;
+
+    // amount of y tokens staked in total
     uint256 public yStakedTotal;
 
-    struct HodlStake {
-        address user;
-        uint64 strike;
-        uint32 epochId;
-        uint256 amount;
-    }
-    mapping (uint32 => HodlStake) public hodlStakes;
+    // for terminated epoch, the final yield per token
+    mapping (uint32 epochId => uint256 ypt) public terminalYieldPerToken;
 
+    // amount of total deposits
     uint256 public deposits;
+
+    // amount of yield claimed
     uint256 public claimed;
 
-    // Track yield on per-epoch basis to support cumulativeYield(uint256)
+    // checkpointed yield per token, updated when deposits go up/down
     uint256 public yieldPerTokenAcc;
+
+    // checkpointed cumulative yield, updated when deposits go up/down
     uint256 public cumulativeYieldAcc;
+
+    // track yield per token and cumulative yield on a per epoch basis
     struct EpochInfo {
         uint64 strike;
         uint256 yieldPerTokenAcc;
         uint256 cumulativeYieldAcc;
     }
-    mapping (uint256 => EpochInfo) infos;
+    mapping (uint32 epochId => EpochInfo) infos;
 
     // Map strike to active epoch ID
-    mapping (uint256 => uint32) public epochs;
+    mapping (uint64 staked => uint32 epochId) public epochs;
 
     // Events
     event Triggered(uint64 indexed strike,
@@ -127,12 +142,12 @@ contract Vault {
         return x < y ? x : y;
     }
 
-    function _checkpoint(uint256 epoch) internal {
+    function _checkpoint(uint32 epochId) internal {
         uint256 ypt = yieldPerToken();
         uint256 total = totalCumulativeYield();
 
-        infos[epoch].cumulativeYieldAcc = cumulativeYield(epoch);
-        infos[epoch].yieldPerTokenAcc = ypt;
+        infos[epochId].cumulativeYieldAcc = cumulativeYield(epochId);
+        infos[epochId].yieldPerTokenAcc = ypt;
 
         yieldPerTokenAcc = ypt;
         cumulativeYieldAcc = total;
@@ -207,7 +222,7 @@ contract Vault {
         // burn the specified hodl stake
         stk.amount -= amount;
 
-        uint256 epochId = epochs[stk.strike];
+        uint32 epochId = epochs[stk.strike];
 
         if (epochId != 0) {
             // checkpoint this strike, to prevent yield accumulation
@@ -355,7 +370,7 @@ contract Vault {
         return yieldPerTokenAcc + incr;
     }
 
-    function cumulativeYield(uint256 epochId) public view returns (uint256) {
+    function cumulativeYield(uint32 epochId) public view returns (uint256) {
         require(epochId < nextId, "invalid epoch");
 
         uint256 ypt;

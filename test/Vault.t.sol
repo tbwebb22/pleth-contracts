@@ -58,17 +58,17 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        uint256 epoch1 = vault.nextId();
+        uint32 epoch1 = vault.nextId();
         vault.mint{value: 3 ether}(strike1);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint256 epoch2 = vault.nextId();
+        uint32 epoch2 = vault.nextId();
         vault.mint{value: 4 ether}(strike2);
         vm.stopPrank();
 
         vm.startPrank(chad);
-        uint256 epoch3 = vault.nextId();
+        uint32 epoch3 = vault.nextId();
         vault.mint{value: 8 ether}(strike3);
         vm.stopPrank();
 
@@ -226,7 +226,7 @@ contract VaultTest is BaseTest {
         oracle.setPrice(strike3 - 1);
 
         vm.startPrank(chad);
-        uint256 epoch4 = vault.nextId();
+        uint32 epoch4 = vault.nextId();
         vault.mint{value: 8 ether}(strike3);
         assertEq(vault.hodlMulti().balanceOf(chad, strike3), 8 ether);
         vm.stopPrank();
