@@ -5,9 +5,9 @@ import "forge-std/console.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IStEth } from "./interfaces/IStEth.sol";
 import { IOracle } from "./interfaces/IOracle.sol";
+import { IAsset } from "./interfaces/IAsset.sol";
 
 import { HodlMultiToken } from "./multi/HodlMultiToken.sol";
 import { YMultiToken } from "./multi/YMultiToken.sol";
@@ -26,7 +26,7 @@ contract Vault {
     IStEth public immutable steth;
     IOracle public immutable oracle;
 
-    IERC4626 public immutable asset;
+    IAsset public immutable asset;
 
     HodlMultiToken public immutable hodlMulti;
     YMultiToken public immutable yMulti;
@@ -126,7 +126,7 @@ contract Vault {
         require(oracle_ != address(0));
 
         steth = IStEth(steth_);
-        asset = IERC4626(asset_);
+        asset = IAsset(asset_);
         oracle = IOracle(oracle_);
 
         hodlMulti = new HodlMultiToken("");
