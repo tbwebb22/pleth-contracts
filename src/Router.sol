@@ -322,7 +322,14 @@ contract Router {
         console.log("start mint");
 
         require(address(this).balance == amount, "expected balance == amount");
-        vault.mint{value: amount}(strike, amount);
+        console.log("balance before wrap:", IERC20(vault.asset().asset()).balanceOf(address(this)));
+        console.log("my address is:", address(this));
+        vault.asset().wrap{value: amount}(0);
+        console.log("balance after warp: ", IERC20(vault.asset().asset()).balanceOf(address(this)));
+        amount = IERC20(vault.asset().asset()).balanceOf(address(this));
+        console.log("wrap done", amount);
+        IERC20(vault.asset().asset()).approve(address(vault), amount);
+        vault.mint{value: 0}(strike, amount);
 
         console.log("mint done");
 

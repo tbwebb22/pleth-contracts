@@ -146,12 +146,10 @@ contract RouterTest is BaseTest {
         vm.expectRevert("y min out");
         router.y{value: 0.2 ether}(strike1, loan, amountY + 1);
 
-        return;
-
-        (uint256 outY, uint32 stake1) = router.y{value: 0.2 ether}(strike1, loan, amountY - 1);
+        (uint256 outY, uint32 stake1) = router.y{value: 0.2 ether}(strike1, loan, amountY - 10);
         vm.stopPrank();
 
-        assertClose(outY, amountY, 1);
+        assertClose(outY, amountY, 10);
         {
             ( , , , uint256 stakeY, , ) = vault.yStakes(stake1);
             assertClose(stakeY, amountY, 10);

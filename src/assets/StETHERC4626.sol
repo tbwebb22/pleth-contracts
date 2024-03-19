@@ -17,9 +17,11 @@ contract StETHERC4626 is IAsset, ERC4626 {
     constructor(address asset_) ERC4626(IERC20(asset_)) ERC20("", "") {}
 
     function wrap(uint256) external payable {
+        console.log("==>wrapping!");
         uint256 before = IERC20(asset()).balanceOf(address(this));
         IStEth(asset()).submit{value: msg.value}(address(0));
         uint256 delta = IERC20(asset()).balanceOf(address(this)) - before;
+        console.log("transferring:", msg.sender, delta);
         IERC20(asset()).transfer(msg.sender, delta);
     }
 }
