@@ -164,27 +164,15 @@ contract Vault {
     function mint(uint64 strike, uint256 amount) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
-        console.log("transfer asset in", amount, msg.sender, asset.asset());
         IERC20 token = IERC20(asset.asset());
 
         uint256 before = token.balanceOf(address(this));
-        console.log("before ", before);
         token.safeTransferFrom(msg.sender, address(this), amount);
-        console.log("after  ", token.balanceOf(address(this)));
         amount = token.balanceOf(address(this)) - before;
 
-        console.log("deposit", amount);
         token.approve(address(asset), amount);
         asset.deposit(amount, address(this));
-        console.log("deposit done");
         deposits += amount;
-
-        /* uint256 delta = amount; */
-
-        /* uint256 before = steth.balanceOf(address(this)); */
-        /* steth.submit{value: msg.value}(address(0)); */
-        /* uint256 delta = steth.balanceOf(address(this)) - before; */
-        /* deposits += delta; */
 
         // create the epoch if needed
         if (epochs[strike] == 0) {

@@ -132,7 +132,6 @@ contract VaultTest is BaseTest {
 
         // simulate yield, stETH balance grows, verify y token receives yield
 
-        console.log("----");
         simulateYield(0.13 ether + 1);
 
         assertClose(vault.totalCumulativeYield(), 0.13 ether, 10);
@@ -251,7 +250,6 @@ contract VaultTest is BaseTest {
 
         vm.startPrank(chad);
         assertClose(vault.yMulti().balanceOf(chad, strike3), 8 ether, 100);
-        console.log("vault.yMulti().balanceOf(chad, strike3)", vault.yMulti().balanceOf(chad, strike3));
         vault.hodlStake(strike3, 8 ether - 1, chad);
         vault.yMulti().safeTransferFrom(chad, degen, strike3, 4 ether, "");
         assertClose(vault.yMulti().balanceOf(chad, strike3), 4 ether, 100);

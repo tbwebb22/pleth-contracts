@@ -14,14 +14,12 @@ import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.
 contract StETHERC4626 is IAsset, ERC4626 {
     using SafeERC20 for IERC20;
 
-    constructor(address asset_) ERC4626(IERC20(asset_)) ERC20("", "") {}
+    constructor(address asset_) ERC4626(IERC20(asset_)) ERC20("stETH erc4626", "stETH erc4626") {}
 
     function wrap(uint256) external payable {
-        console.log("==>wrapping!");
         uint256 before = IERC20(asset()).balanceOf(address(this));
         IStEth(asset()).submit{value: msg.value}(address(0));
         uint256 delta = IERC20(asset()).balanceOf(address(this)) - before;
-        console.log("transferring:", msg.sender, delta);
         IERC20(asset()).transfer(msg.sender, delta);
     }
 }

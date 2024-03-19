@@ -225,8 +225,6 @@ contract Router {
         uint256 value = msg.value;
         bytes memory data = abi.encode(LOAN_Y, msg.sender, strike, value + loan, minOut);
 
-        console.log("start flash loan");
-
         aavePool.flashLoanSimple(address(this), address(weth), loan, data, 0);
 
         uint256 amount = vault.yMulti().balanceOf(address(this), strike);
@@ -319,19 +317,11 @@ contract Router {
         // mint hodl + y tokens
         weth.withdraw(loan);
 
-        console.log("start mint");
-
         require(address(this).balance == amount, "expected balance == amount");
-        console.log("balance before wrap:", IERC20(vault.asset().asset()).balanceOf(address(this)));
-        console.log("my address is:", address(this));
         vault.asset().wrap{value: amount}(0);
-        console.log("balance after warp: ", IERC20(vault.asset().asset()).balanceOf(address(this)));
         amount = IERC20(vault.asset().asset()).balanceOf(address(this));
-        console.log("wrap done", amount);
         IERC20(vault.asset().asset()).approve(address(vault), amount);
         vault.mint{value: 0}(strike, amount);
-
-        console.log("mint done");
 
         // handle steth off by 1 error
         amount = _assertMaxDiffAndTakeSmaller(
