@@ -167,9 +167,6 @@ contract Vault {
             epochs[strike] = nextId++;
         }
 
-        // track per-epoch yield accumulation
-        _checkpoint(epochs[strike]);
-
         // mint hodl + y
         hodlMulti.mint(msg.sender, strike, delta);
         yMulti.mint(msg.sender, strike, delta);
