@@ -243,7 +243,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.yStaked(epoch3), 0);
 
         assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
-        assertEq(vault.cumulativeYield(epoch2), 0.24 ether - 8);
+        assertEq(vault.cumulativeYield(epoch2), 0.24 ether - 4);
         assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);  // [strike3] redeemed, so no increase
         assertEq(vault.cumulativeYield(epoch4), 0);  // [strike3] unstaked, so no yield
 
@@ -277,7 +277,7 @@ contract VaultTest is BaseTest {
         assertEq(vault.yStakedTotal(), 8 ether);
 
         assertEq(vault.cumulativeYield(epoch1), 0.01 ether);
-        assertEq(vault.cumulativeYield(epoch2), 0.28 ether - 12);
+        assertEq(vault.cumulativeYield(epoch2), 0.28 ether - 8);
         assertEq(vault.cumulativeYield(epoch3), 0.16 ether - 1);  // [strike3] redeemed, so no increase
         assertEq(vault.cumulativeYield(epoch4), 0.04 ether - 4);  // [strike3] staked in new epoch
     }
