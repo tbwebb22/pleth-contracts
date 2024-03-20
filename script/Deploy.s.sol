@@ -11,6 +11,8 @@ import { Router } from  "../src/Router.sol";
 
 import { BaseScript } from "./BaseScript.sol";
 import { FakeOracle } from  "../test/helpers/FakeOracle.sol";
+import { IStEth } from "../src/interfaces/IStEth.sol";
+import { StETHERC4626 } from "../src/assets/StETHERC4626.sol";
 
 // Uniswap interfaces
 import { IUniswapV3Pool } from "../src/interfaces/uniswap/IUniswapV3Pool.sol";
@@ -47,9 +49,8 @@ contract DeployScript is BaseScript {
         FakeOracle oracle = new FakeOracle();
         oracle.setPrice(1999_00000000);
 
-        vault = new Vault(steth,
-                          address(0),
-                          address(oracle));
+        StETHERC4626 asset = new StETHERC4626(steth);
+        vault = new Vault(address(asset), address(oracle));
 
         if (true) {
             deployUniswap(strike1, 73044756656988589698425290750, 85935007831751276823975034880);
@@ -113,7 +114,9 @@ contract DeployScript is BaseScript {
         uint256 amount = 100 ether;
 
         IWrappedETH(address(weth)).deposit{value: amount}();
-        vault.mint{value: amount + 100}(strike, amount + 100);  // Add 100 for stETH off-by-one
+        IStEth(steth).submit{value: amount + 100}(address(0));
+        IERC20(steth).approve(address(vault.asset()), amount + 100);
+        vault.mint{value: 0}(strike, amount + 100);  // Add 100 for stETH off-by-one
 
         // Add initial liquidity
         manager = INonfungiblePositionManager(mainnet_NonfungiblePositionManager);

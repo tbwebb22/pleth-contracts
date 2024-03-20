@@ -5,7 +5,6 @@ import "forge-std/console.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStEth } from "./interfaces/IStEth.sol";
 import { IOracle } from "./interfaces/IOracle.sol";
 import { IAsset } from "./interfaces/IAsset.sol";
 
@@ -23,7 +22,6 @@ contract Vault {
 
     uint32 public nextId = 1;
 
-    IStEth public immutable steth;
     IOracle public immutable oracle;
 
     IAsset public immutable asset;
@@ -119,13 +117,9 @@ contract Vault {
                     uint32 indexed stakeId,
                     uint256 amount);
 
-    constructor(address steth_,
-                address asset_,
-                address oracle_) {
-        require(steth_ != address(0));
+    constructor(address asset_, address oracle_) {
         require(oracle_ != address(0));
 
-        steth = IStEth(steth_);
         asset = IAsset(asset_);
         oracle = IOracle(oracle_);
 
@@ -161,14 +155,15 @@ contract Vault {
         cumulativeYieldAcc = total;
     }
 
-    function mint(uint64 strike, uint256 amount) external payable {
+    function mint(uint64 strike, uint256) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
         IERC20 token = IERC20(asset.asset());
 
         uint256 before = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), amount);
-        amount = token.balanceOf(address(this)) - before;
+        asset.wrap{value: msg.value}(0);
+        /* token.safeTransferFrom(msg.sender, address(this), amount); */
+        uint256 amount = token.balanceOf(address(this)) - before;
 
         token.approve(address(asset), amount);
         asset.deposit(amount, address(this));

@@ -45,15 +45,13 @@ contract RouterTest is BaseTest {
         // Set up: deploy vault, mint some hodl for alice, make it redeemable
         oracle = new FakeOracle();
         StETHERC4626 asset = new StETHERC4626(steth);
-        vault = new Vault(steth,
-                          address(asset),
-                          address(oracle));
+        vault = new Vault(address(asset), address(oracle));
         oracle.setPrice(strike1 - 1);
         address hodl1 = vault.deployERC20(strike1);
         vm.startPrank(alice);
-        IStEth(steth).submit{value: 3 ether}(address(0));
-        IERC20(steth).approve(address(vault), 3 ether - 1);
-        vault.mint{value: 0 ether}(strike1, 3 ether - 1);
+        /* IStEth(steth).submit{value: 3 ether}(address(0)); */
+        /* IERC20(steth).approve(address(vault), 3 ether - 1); */
+        vault.mint{value: 3 ether}(strike1, 0);
         vm.stopPrank();
         oracle.setPrice(strike1 + 1);
 
