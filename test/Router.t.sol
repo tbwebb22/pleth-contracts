@@ -49,8 +49,6 @@ contract RouterTest is BaseTest {
         oracle.setPrice(strike1 - 1);
         address hodl1 = vault.deployERC20(strike1);
         vm.startPrank(alice);
-        /* IStEth(steth).submit{value: 3 ether}(address(0)); */
-        /* IERC20(steth).approve(address(vault), 3 ether - 1); */
         vault.mint{value: 3 ether}(strike1, 0);
         vm.stopPrank();
         oracle.setPrice(strike1 + 1);

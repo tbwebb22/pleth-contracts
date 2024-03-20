@@ -42,24 +42,17 @@ contract VaultTest is BaseTest {
         // mint hodl tokens
         vm.startPrank(alice);
         uint32 epoch1 = vault.nextId();
-        /* vault.asset().wrap{value: 3 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 3 ether - 1); */
         vault.mint{value: 3 ether}(strike1, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
 
         uint32 epoch2 = vault.nextId();
-        /* vault.asset().wrap{value: 4 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 4 ether - 1); */
-        /* vault.mint{value: 0}(strike2, 4 ether - 1); */
         vault.mint{value: 4 ether}(strike2, 0);
         vm.stopPrank();
 
         vm.startPrank(chad);
         uint32 epoch3 = vault.nextId();
-        /* vault.asset().wrap{value: 8 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 8 ether - 1); */
         vault.mint{value: 8 ether}(strike3, 0);
         vm.stopPrank();
 
@@ -220,8 +213,6 @@ contract VaultTest is BaseTest {
 
         vm.startPrank(chad);
         uint32 epoch4 = vault.nextId();
-        /* vault.asset().wrap{value: 8 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 8 ether - 1); */
         vault.mint{value: 8 ether}(strike3, 0);
         assertClose(vault.hodlMulti().balanceOf(chad, strike3), 8 ether, 10);
         vm.stopPrank();
@@ -281,8 +272,6 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        /* vault.asset().wrap{value: 1 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 1 ether - 1); */
         vault.mint{value: 1 ether}(strike1, 0);
         vm.stopPrank();
 
@@ -349,8 +338,6 @@ contract VaultTest is BaseTest {
         vm.startPrank(alice);
 
         // mint hodl tokens
-        /* vault.asset().wrap{value: 4 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 4 ether - 1); */
         vault.mint{value: 4 ether}(strike1, 0);
 
         // stake 2 of 4 before strike hits
@@ -395,8 +382,6 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        /* vault.asset().wrap{value: 4 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 4 ether - 1); */
         vault.mint{value: 4 ether}(strike1, 0);
         vm.stopPrank();
 
@@ -506,8 +491,6 @@ contract VaultTest is BaseTest {
 
         // mint hodl tokens
         vm.startPrank(alice);
-        /* vault.asset().wrap{value: 4 ether}(0); */
-        /* IERC20(steth).approve(address(vault), 4 ether - 1); */
         vault.mint{value: 4 ether}(strike1, 0);
         vm.stopPrank();
 
