@@ -155,7 +155,7 @@ contract Vault {
         cumulativeYieldAcc = total;
     }
 
-    function mint(uint64 strike, uint256) external payable {
+    function mint(uint64 strike) external payable {
         require(oracle.price(0) <= strike, "strike too low");
 
         IERC20 token = IERC20(asset.asset());

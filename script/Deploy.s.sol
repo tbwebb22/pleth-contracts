@@ -114,9 +114,7 @@ contract DeployScript is BaseScript {
         uint256 amount = 100 ether;
 
         IWrappedETH(address(weth)).deposit{value: amount}();
-        IStEth(steth).submit{value: amount + 100}(address(0));
-        IERC20(steth).approve(address(vault.asset()), amount + 100);
-        vault.mint{value: 0}(strike, amount + 100);  // Add 100 for stETH off-by-one
+        vault.mint{value: amount + 100}(strike);  // Add 100 for stETH off-by-one
 
         // Add initial liquidity
         manager = INonfungiblePositionManager(mainnet_NonfungiblePositionManager);

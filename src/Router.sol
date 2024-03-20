@@ -318,10 +318,7 @@ contract Router {
         weth.withdraw(loan);
 
         require(address(this).balance == amount, "expected balance == amount");
-        /* vault.asset().wrap{value: amount}(0); */
-        /* amount = IERC20(vault.asset().asset()).balanceOf(address(this)); */
-        /* IERC20(vault.asset().asset()).approve(address(vault), amount); */
-        vault.mint{value: amount}(strike, 0);
+        vault.mint{value: amount}(strike);
 
         // handle steth off by 1 error
         amount = _assertMaxDiffAndTakeSmaller(
