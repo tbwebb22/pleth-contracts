@@ -12,8 +12,6 @@ import { HodlMultiToken } from "./multi/HodlMultiToken.sol";
 import { YMultiToken } from "./multi/YMultiToken.sol";
 import { HodlToken } from  "./single/HodlToken.sol";
 
-import { StETHERC4626 } from "./assets/StETHERC4626.sol";
-
 
 contract Vault {
     using SafeERC20 for IERC20;
@@ -204,9 +202,8 @@ contract Vault {
     }
 
     function _withdraw(uint256 amount, address user) private returns (uint256) {
-        asset.withdraw(_min(amount, asset.maxWithdraw(address(this))),
-                       user,
-                       address(this));
+        amount = _min(amount, asset.maxWithdraw(address(this)));
+        asset.withdraw(amount, user, address(this));
         return amount;
     }
 
