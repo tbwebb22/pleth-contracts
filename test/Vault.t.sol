@@ -679,6 +679,50 @@ contract VaultTest is BaseTest {
         assertEq(vault.yMulti().balanceOf(chad, strike1), 4 ether - 2);
     }   
 
+    // Test the merge function
+    function testMerge() public {
+        initVault();
+
+        // Alice mints tokens: 1ETH @ strike1
+        vm.startPrank(alice);
+        vault.mint{value: 1 ether}(strike1);
+        vm.stopPrank();
+
+        // Bob mints tokens: 2ETH @ strike2
+        vm.startPrank(bob);
+        vault.mint{value: 2 ether}(strike2);
+        vm.stopPrank();
+
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), 1 ether - 2);
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 1 ether - 2);
+
+        assertEq(vault.hodlMulti().balanceOf(bob, strike2), 2 ether - 2);
+        assertEq(vault.yMulti().balanceOf(bob, strike2), 2 ether - 2);
+
+        // Alice merges strike 1 tokens
+        vm.startPrank(alice);
+        vault.merge(strike1, 1 ether - 2);
+        vm.stopPrank();
+
+        assertEq(vault.hodlMulti().balanceOf(alice, strike1), 0);
+        assertEq(vault.yMulti().balanceOf(alice, strike1), 0);
+        assertClose(IERC20(steth).balanceOf(alice), 1 ether, 10);
+
+        // Bob merges half of his strike 2 tokens
+        vm.startPrank(bob);
+        vault.merge(strike2, 1 ether);
+        vm.stopPrank();
+
+        assertEq(vault.hodlMulti().balanceOf(bob, strike2), 1 ether - 2);
+        assertEq(vault.yMulti().balanceOf(bob, strike2), 1 ether - 2);
+        assertEq(IERC20(steth).balanceOf(bob), 1 ether - 1);
+
+        // Bob can't merge more tokens than he has
+        vm.startPrank(bob);
+        vm.expectRevert();
+        vault.merge(strike2, 2 ether);
+    }
+
     function simulateYield(uint256 amount) internal {
         IStEth(steth).submit{value: amount}(address(0));
         IERC20(steth).transfer(address(vault.asset()), amount);
