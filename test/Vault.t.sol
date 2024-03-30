@@ -564,6 +564,121 @@ contract VaultTest is BaseTest {
         vm.stopPrank();
     }
 
+    // Tests that unstaked HODL tokens can still be redeemed when price is above strike
+    // note: could not complete this test because the codebase doesn't currently support redeeming unstaked HODL tokens
+    // when ETH is above the strike price. However I do think the codebase needs this ability to make the game theory work
+    function testRedeemHodlAboveStrike() public {
+        initVault();
+
+        // Alice mints HODL tokens: 1ETH @ strike1 & 2 ETH @ strike2
+        vm.startPrank(alice);
+        uint32 epoch1 = vault.nextId();
+        vault.mint{value: 1 ether}(strike1);
+        uint32 epoch2 = vault.nextId();
+        vault.mint{value: 2 ether}(strike2);
+        vm.stopPrank();
+
+        // Bob mints HODL tokens: 4 ETH @ strike3
+        vm.startPrank(bob);
+        uint32 epoch3 = vault.nextId();
+        vault.mint{value: 4 ether}(strike3);
+        vm.stopPrank();
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike1), 1 ether, 10);
+        assertEq(vault.hodlMulti().balanceOf(bob, strike1), 0);
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 1 ether, 10);
+        assertEq(vault.yMulti().balanceOf(bob, strike1), 0);
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike2), 2 ether, 10);
+        assertEq(vault.hodlMulti().balanceOf(bob, strike2), 0);
+        assertClose(vault.yMulti().balanceOf(alice, strike2), 2 ether, 10);
+        assertEq(vault.yMulti().balanceOf(bob, strike2), 0);
+
+        assertEq(vault.hodlMulti().balanceOf(alice, strike3), 0);
+        assertClose(vault.hodlMulti().balanceOf(bob, strike3), 4 ether, 10);
+        assertEq(vault.yMulti().balanceOf(alice, strike3), 0);
+        assertClose(vault.yMulti().balanceOf(bob, strike3), 4 ether, 10);
+
+        // Price moves to just under strike1
+        oracle.setPrice(strike1 - 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert("cannot redeem");
+
+        // codebase doesn't currently support redeeming unstaked HODLToken,
+        // redeem function needs to take stakeID as a parameter
+        // vault.redeem(1 ether, )
+    }
+
+    // Test that redeem function correctly handles accounting
+    function testRedeemAccounting() public {
+        initVault();
+
+        // Alice mints HODL tokens: 1ETH @ strike1, epoch1
+        vm.startPrank(alice);
+        uint32 epoch1 = vault.nextId();
+        vault.mint{value: 1 ether}(strike1);
+        vm.stopPrank();
+
+        // Bob mints HODL tokens: 2 ETH @ strike1, epoch1
+        vm.startPrank(bob);
+        vault.mint{value: 2 ether}(strike1);
+        vm.stopPrank();
+
+        assertClose(vault.hodlMulti().balanceOf(alice, strike1), 1 ether, 10);
+        assertClose(vault.hodlMulti().balanceOf(bob, strike1), 2 ether, 10);
+        assertClose(vault.yMulti().balanceOf(alice, strike1), 1 ether, 10);
+        assertClose(vault.yMulti().balanceOf(bob, strike1), 2 ether, 10);
+
+        // Alice stakes HODL & ytokens
+        vm.startPrank(alice);
+        uint32 aliceHodlStake = vault.hodlStake(strike1, 1 ether - 2, alice);
+        uint32 aliceYStake = vault.yStake(strike1, 1 ether - 2, alice);
+        vm.stopPrank();
+
+        // Bob stakes HODL & yTokens
+        vm.startPrank(bob);
+        uint32 bobHodlStake = vault.hodlStake(strike1, 2 ether - 2, bob);
+        uint32 bobYStake = vault.yStake(strike1, 2 ether - 2, bob);
+        vm.stopPrank();
+
+        // Epoch 1 includes both Alice and Bob's stakes
+        assertEq(vault.yStaked(epoch1), 3 ether - 4);
+
+        assertEq(vault.yStakedTotal(), 3 ether - 4);
+
+        // Price moves to above strike1
+        oracle.setPrice(strike1 + 1);
+
+        // Alice claims staked HODL tokens
+        vm.startPrank(alice);
+        vault.redeem(1 ether - 2, aliceHodlStake);
+        vm.stopPrank();
+
+        // Price moves back below strike1
+        oracle.setPrice(strike1 - 1);
+
+        // Chad mints HODL tokens: 4 ETH @ strike1, epoch2
+        vm.startPrank(chad);
+        uint32 epoch2 = vault.nextId();
+        vault.mint{value: 4 ether}(strike1);
+        vm.stopPrank();
+
+        assertEq(vault.hodlMulti().balanceOf(chad, strike1), 4 ether - 2);
+        assertEq(vault.yMulti().balanceOf(chad, strike1), 4 ether - 2);
+
+        // Bob claims staked HODL tokens from epoch 1, we are currently in epoch 2
+        vm.startPrank(bob);
+        vault.redeem(2 ether - 2, bobHodlStake);
+        vm.stopPrank();
+
+        assertEq(vault.hodlMulti().balanceOf(chad, strike1), 4 ether - 2);
+
+        // BUG: the below test fails, bob redeem staked hodl from epoch 1 causes all of the yTokens from epoch 2 to get burned
+        // due to a bug in the contracts. yMulti.burnStrike() should only be triggered once per epoch
+        assertEq(vault.yMulti().balanceOf(chad, strike1), 4 ether - 2);
+    }   
+
     function simulateYield(uint256 amount) internal {
         IStEth(steth).submit{value: amount}(address(0));
         IERC20(steth).transfer(address(vault.asset()), amount);
